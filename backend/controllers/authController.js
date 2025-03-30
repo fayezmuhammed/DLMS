@@ -29,7 +29,7 @@ exports.register = async (req, res) => {
             name,
             email,
             password,
-            role: role || 'user' // Allow role to be set during registration
+            role: role || 'student' // Set default role to student
         });
 
         if (user) {

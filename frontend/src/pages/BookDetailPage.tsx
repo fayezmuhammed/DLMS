@@ -2,28 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import axios from 'axios';
 import { toast } from '@/components/ui/use-toast';
-
-// Interface for Book type
-interface Book {
-  _id: string;
-  title: string;
-  author: string;
-  ISBN: string;
-  category: {
-    _id: string;
-    name: string;
-  };
-  status: 'Available' | 'Reserved' | 'Issued' | 'Lost';
-  copies: number;
-  publisher: string;
-  edition: string;
-  description: string;
-  tags: string;
-  image?: string;
-  shelf?: string;
-}
+import { Book, bookService } from '@/services/bookService';
+import api from '@/utils/api';
 
 // Interface for User type
 interface User {
@@ -57,22 +38,40 @@ const BookDetailPage: React.FC = () => {
     const fetchBook = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`http://localhost:5001/api/books/${id}`);
-        setBook(response.data.book);
+        if (!id) return;
         
-        // Fetch related books
-        const allBooksResponse = await axios.get('http://localhost:5001/api/books');
-        const allBooks = allBooksResponse.data.books;
-        
-        // Filter related books by category
-        if (response.data.book && response.data.book.category) {
-          const related = allBooks.filter((b: Book) => 
-            b._id !== response.data.book._id && 
-            b.category && 
-            b.category._id === response.data.book.category._id
-          ).slice(0, 3);
+        // Use bookService to fetch book details
+        const response = await api.get(`/books/${id}`);
+        if (response.data && response.data.book) {
+          setBook(response.data.book);
           
-          setRelatedBooks(related);
+          // Fetch related books
+          const booksResponse = await bookService.getBooks();
+          const allBooks = booksResponse.data || [];
+          
+          // Filter related books by category
+          if (response.data.book && response.data.book.category) {
+            const categoryId = typeof response.data.book.category === 'object' 
+              ? response.data.book.category._id 
+              : response.data.book.category;
+              
+            const related = allBooks
+              .filter((b: Book) => {
+                if (!b.category) return false;
+                
+                const bookCategoryId = typeof b.category === 'object' 
+                  ? b.category._id 
+                  : b.category;
+                  
+                return b._id !== response.data.book._id && 
+                       bookCategoryId === categoryId;
+              })
+              .slice(0, 3);
+            
+            setRelatedBooks(related);
+          }
+        } else {
+          setError('Book not found');
         }
         
         setLoading(false);
@@ -101,7 +100,7 @@ const BookDetailPage: React.FC = () => {
 
     try {
       setReserving(true);
-      const response = await axios.post('http://localhost:5001/api/transactions/reserved-book', 
+      const response = await api.post('/transactions/reserved-book', 
         { bookId: book?._id },
         { 
           headers: { 
@@ -112,7 +111,7 @@ const BookDetailPage: React.FC = () => {
       
       if (response.data.success) {
         // Send reservation confirmation email
-        await axios.post('http://localhost:5001/api/transactions/send-reservation-email', {
+        await api.post('/transactions/send-reservation-email', {
           userId: user._id,
           bookId: book?._id
         }, {
@@ -126,8 +125,10 @@ const BookDetailPage: React.FC = () => {
           description: "Book reserved successfully. A confirmation email has been sent to your registered email address.",
         });
         // Refresh book data
-        const updatedBookResponse = await axios.get(`http://localhost:5001/api/books/${id}`);
-        setBook(updatedBookResponse.data.book);
+        if (id) {
+          const updatedBookResponse = await api.get(`/books/${id}`);
+          setBook(updatedBookResponse.data.book);
+        }
       }
     } catch (err: any) {
       console.error('Error reserving book:', err);
@@ -257,30 +258,37 @@ const BookDetailPage: React.FC = () => {
           <Card>
             <CardContent className="p-6">
               <h3 className="text-xl font-semibold mb-4">Book Details</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">ISBN</p>
-                  <p>{book.ISBN}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Category</p>
-                  <p>{book.category?.name || 'Uncategorized'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Publisher</p>
-                  <p>{book.publisher || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Edition</p>
-                  <p>{book.edition || 'Not specified'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Location</p>
-                  <p>Shelf: {book.shelf || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <p>{book.status}</p>
+              <div className="mt-6 space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="font-medium">Category:</div>
+                  <div>
+                    {typeof book.category === 'object' && book.category?.name ? book.category.name : 'Unknown'}
+                  </div>
+                  <div className="font-medium">ISBN:</div>
+                  <div>{book.ISBN}</div>
+                  <div className="font-medium">Status:</div>
+                  <div>{book.status}</div>
+                  <div className="font-medium">Copies Available:</div>
+                  <div>{book.copies}</div>
+                  {book.publisher && (
+                    <>
+                      <div className="font-medium">Publisher:</div>
+                      <div>{book.publisher}</div>
+                    </>
+                  )}
+                  {book.edition && (
+                    <>
+                      <div className="font-medium">Edition:</div>
+                      <div>{book.edition}</div>
+                    </>
+                  )}
+                  {/* Use optional chaining for properties that might not exist */}
+                  {book.shelf && (
+                    <>
+                      <div className="font-medium">Shelf Location:</div>
+                      <div>{book.shelf}</div>
+                    </>
+                  )}
                 </div>
               </div>
             </CardContent>

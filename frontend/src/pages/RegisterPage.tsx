@@ -14,7 +14,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
     confirmPassword: '',
     batchName: '',
     classNumber: '',
-    role: 'Student',
+    role: 'student',
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -132,12 +132,12 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-shadow"
                   required
                 >
-                  <option value="Student">Student</option>
-                  <option value="Teacher">Teacher</option>
+                  <option value="student">Student</option>
+                  <option value="teacher">Teacher</option>
                 </select>
               </div>
 
-              {formData.role === 'Student' && (
+              {formData.role === 'student' && (
                 <>
                   <div>
                     <label className="block text-md font-medium text-gray-700 mb-2">

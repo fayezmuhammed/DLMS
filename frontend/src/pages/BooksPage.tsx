@@ -4,145 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import axios from 'axios';
+import { Book, Category, bookService } from '@/services/bookService';
 
-// Interface for Book type
-interface Book {
-  _id: string;
-  title: string;
-  author: string;
-  ISBN: string;
-  category: {
-    _id: string;
-    name: string;
-  };
-  imagePath?: string;
-  status: 'Available' | 'Reserved' | 'Issued' | 'Lost';
-  description?: string;
-}
-
-// Interface for Category type
-interface Category {
-  _id: string;
-  name: string;
-  description?: string;
-}
-
-// Mock books data with realistic book information
-const mockBooks: Book[] = [
-  {
-    _id: 'book1',
-    title: 'To Kill a Mockingbird',
-    author: 'Harper Lee',
-    ISBN: '9780061120084',
-    category: {
-      _id: 'cat1',
-      name: 'Fiction'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1553383690i/2657.jpg',
-    status: 'Available',
-    description: 'The unforgettable novel of a childhood in a sleepy Southern town and the crisis of conscience that rocked it.'
-  },
-  {
-    _id: 'book2',
-    title: 'The Great Gatsby',
-    author: 'F. Scott Fitzgerald',
-    ISBN: '9780743273565',
-    category: {
-      _id: 'cat1',
-      name: 'Fiction'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1490528560i/4671.jpg',
-    status: 'Reserved',
-    description: 'A true classic of twentieth-century literature about the American Dream and its corruption.'
-  },
-  {
-    _id: 'book3',
-    title: 'Sapiens: A Brief History of Humankind',
-    author: 'Yuval Noah Harari',
-    ISBN: '9780062316097',
-    category: {
-      _id: 'cat2',
-      name: 'Non-Fiction'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1420585954i/23692271.jpg',
-    status: 'Available',
-    description: 'How Homo sapiens became Earth\'s dominant species, exploring history from the Stone Age to the Silicon Age.'
-  },
-  {
-    _id: 'book4',
-    title: 'The Alchemist',
-    author: 'Paulo Coelho',
-    ISBN: '9780062315007',
-    category: {
-      _id: 'cat1',
-      name: 'Fiction'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1654371463i/18144590.jpg',
-    status: 'Issued',
-    description: 'A magical story about following your dreams and listening to your heart.'
-  },
-  {
-    _id: 'book5',
-    title: 'Clean Code: A Handbook of Agile Software Craftsmanship',
-    author: 'Robert C. Martin',
-    ISBN: '9780132350884',
-    category: {
-      _id: 'cat3',
-      name: 'Technology'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1436202607i/3735293.jpg',
-    status: 'Available',
-    description: 'Even bad code can function. But if code isn\'t clean, it can bring a development organization to its knees.'
-  },
-  {
-    _id: 'book6',
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    ISBN: '9780735211292',
-    category: {
-      _id: 'cat4',
-      name: 'Self-Help'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1535115320i/40121378.jpg',
-    status: 'Available',
-    description: 'Tiny changes, remarkable results: An easy & proven way to build good habits & break bad ones.'
-  },
-  {
-    _id: 'book7',
-    title: '1984',
-    author: 'George Orwell',
-    ISBN: '9780451524935',
-    category: {
-      _id: 'cat1',
-      name: 'Fiction'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1657781256i/61439040.jpg',
-    status: 'Available',
-    description: 'A startling vision of a dystopian future where government surveillance controls every aspect of citizens\' lives.'
-  },
-  {
-    _id: 'book8',
-    title: 'Think and Grow Rich',
-    author: 'Napoleon Hill',
-    ISBN: '9781585424337',
-    category: {
-      _id: 'cat4',
-      name: 'Self-Help'
-    },
-    imagePath: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1463241782i/30186948.jpg',
-    status: 'Reserved',
-    description: 'The classic bestseller on using the power of positive thinking to achieve success.'
-  }
-];
-
-// Mock categories data
-const mockCategories: Category[] = [
-  { _id: 'cat1', name: 'Fiction', description: 'Fictional literature including novels and short stories' },
-  { _id: 'cat2', name: 'Non-Fiction', description: 'Educational and informative books including biographies, history, and science' },
-  { _id: 'cat3', name: 'Technology', description: 'Books about computer science, programming, and technology' },
-  { _id: 'cat4', name: 'Self-Help', description: 'Personal development and motivational books' }
-];
+// Interface for Book type is now imported from bookService
+// Interface for Category type is now imported from bookService
 
 const BooksPage: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
@@ -160,32 +25,17 @@ const BooksPage: React.FC = () => {
         setLoading(true);
         
         // Fetch books
-        const booksResponse = await axios.get('http://localhost:5001/api/books');
-        
-        // If the response doesn't contain books or is empty, use mock data
-        if (!booksResponse.data.books || booksResponse.data.books.length === 0) {
-          setBooks(mockBooks);
-        } else {
-          setBooks(booksResponse.data.books);
-        }
+        const booksResponse = await bookService.getBooks();
+        setBooks(booksResponse.data || []);
         
         // Fetch categories
-        const categoriesResponse = await axios.get('http://localhost:5001/api/categories');
-        
-        // If the response doesn't contain categories or is empty, use mock data
-        if (!categoriesResponse.data.categories || categoriesResponse.data.categories.length === 0) {
-          setCategories(mockCategories);
-        } else {
-          setCategories(categoriesResponse.data.categories);
-        }
+        const categoriesResponse = await bookService.getCategories();
+        setCategories(categoriesResponse.data || []);
         
         setLoading(false);
       } catch (err) {
         console.error('Error fetching data:', err);
-        // Use mock data when API fails
-        setBooks(mockBooks);
-        setCategories(mockCategories);
-        setError(''); // Clear error since we're showing mock data
+        setError('Failed to load books. Please try again later.');
         setLoading(false);
       }
     };
@@ -200,8 +50,12 @@ const BooksPage: React.FC = () => {
       book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (book.description && book.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
-    const matchesCategory = selectedCategory === 'all' || 
-      (book.category && book.category._id === selectedCategory);
+    // Handle category being either a string, object, or null
+    let bookCategoryId = null;
+    if (book.category) {
+      bookCategoryId = typeof book.category === 'object' ? book.category._id : book.category;
+    }
+    const matchesCategory = selectedCategory === 'all' || bookCategoryId === selectedCategory;
     
     const matchesAvailability = availabilityFilter === 'all' || 
       (availabilityFilter === 'available' && book.status === 'Available') ||

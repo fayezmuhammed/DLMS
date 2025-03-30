@@ -9,6 +9,7 @@ const HomePage = lazy(() => import('@/pages/HomePage'));
 const BooksPage = lazy(() => import('@/pages/BooksPage'));
 const BookDetailPage = lazy(() => import('@/pages/BookDetailPage'));
 const EBooksPage = lazy(() => import('@/pages/EBooksPage'));
+const EBookDetailPage = lazy(() => import('@/pages/EBookDetailPage'));
 const TransactionsPage = lazy(() => import('@/pages/TransactionsPage'));
 const WishlistPage = lazy(() => import('@/pages/WishlistPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
@@ -172,6 +173,10 @@ function App() {
             <Route path="books" element={<BooksPage />} />
             <Route path="books/:id" element={<BookDetailPage />} />
             <Route path="ebooks" element={<EBooksPage />} />
+            <Route 
+              path="ebooks/:id" 
+              element={<EBookDetailPage />} 
+            />
             <Route 
               path="transactions" 
               element={

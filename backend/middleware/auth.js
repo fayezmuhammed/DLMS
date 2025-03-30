@@ -4,8 +4,13 @@ const User = require('../models/User');
 exports.protect = async (req, res, next) => {
     let token;
 
+    // Check authorization header
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
+    } 
+    // Check query parameters for token
+    else if (req.query.token) {
+        token = req.query.token;
     }
 
     if (!token) {
@@ -25,6 +30,32 @@ exports.protect = async (req, res, next) => {
             message: 'Not authorized to access this route'
         });
     }
+};
+
+// Optional authentication - user will be added to req if token exists
+exports.optionalAuth = async (req, res, next) => {
+    let token;
+
+    // Check for token in authorization header
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    } 
+    // Also check query parameters for token (for iframe/direct URL access)
+    else if (req.query.token) {
+        token = req.query.token;
+    }
+    
+    if (token) {
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET);
+            req.user = await User.findById(decoded.id);
+        } catch (err) {
+            // Just continue without user, no error response
+            req.user = null;
+        }
+    }
+
+    next();
 };
 
 exports.authorize = (...roles) => {

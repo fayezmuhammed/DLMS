@@ -1,30 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Book, bookService } from '@/services/bookService';
 
 const HomePage: React.FC = () => {
-  // Mock data for featured books - reduced to 3 essential items
-  const featuredBooks = [
-    {
-      id: 1,
-      title: 'To Kill a Mockingbird',
-      author: 'Harper Lee',
-      coverImage: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1553383690i/2657.jpg',
-    },
-    {
-      id: 2,
-      title: '1984',
-      author: 'George Orwell',
-      coverImage: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1657781256i/61439040.jpg',
-    },
-    {
-      id: 3,
-      title: 'The Great Gatsby',
-      author: 'F. Scott Fitzgerald',
-      coverImage: 'https://images-na.ssl-images-amazon.com/images/S/compressed.photo.goodreads.com/books/1490528560i/4671.jpg',
-    },
-  ];
+  const [featuredBooks, setFeaturedBooks] = useState<Book[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch books from API
+    const fetchBooks = async () => {
+      try {
+        setLoading(true);
+        const response = await bookService.getBooks();
+        const books = response.data || [];
+        
+        // Get 3 random books or the first 3 if not enough books
+        if (books.length > 3) {
+          // Get 3 random books
+          const randomBooks = [...books].sort(() => 0.5 - Math.random()).slice(0, 3);
+          setFeaturedBooks(randomBooks);
+        } else {
+          // Just use whatever books we have
+          setFeaturedBooks(books);
+        }
+      } catch (error) {
+        console.error('Error fetching books:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, []);
 
   return (
     <div className="min-h-screen bg-white">
@@ -61,31 +70,35 @@ const HomePage: React.FC = () => {
             <h2 className="text-3xl font-light text-gray-900">Featured Books</h2>
             <div className="w-16 h-px bg-indigo-200 mx-auto mt-4"></div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {featuredBooks.map((book) => (
-              <Link 
-                to={`/books/${book.id}`} 
-                key={book.id}
-                className="group"
-              >
-                <div className="space-y-4">
-                  <div className="aspect-[3/4] overflow-hidden rounded-lg bg-gray-100">
-                    <img 
-                      src={book.coverImage} 
-                      alt={book.title} 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
+          {loading ? (
+            <div className="text-center py-8">Loading featured books...</div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+              {featuredBooks.map((book) => (
+                <Link 
+                  to={`/books/${book._id}`} 
+                  key={book._id}
+                  className="group"
+                >
+                  <div className="space-y-4">
+                    <div className="aspect-[3/4] overflow-hidden rounded-lg bg-gray-100">
+                      <img 
+                        src={book.coverImage || book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
+                        alt={book.title} 
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                    </div>
+                    <div className="text-center">
+                      <h3 className="font-light text-lg text-gray-900 group-hover:text-indigo-600 transition-colors">
+                        {book.title}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">{book.author}</p>
+                    </div>
                   </div>
-                  <div className="text-center">
-                    <h3 className="font-light text-lg text-gray-900 group-hover:text-indigo-600 transition-colors">
-                      {book.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">{book.author}</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

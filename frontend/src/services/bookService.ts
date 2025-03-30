@@ -11,7 +11,7 @@ export interface Book {
   title: string;
   author: string;
   ISBN: string;
-  category: string | Category;
+  category?: string | Category | null;
   status: 'Available' | 'Reserved' | 'Issued' | 'Lost';
   copies: number;
   coverImage?: string;
@@ -21,6 +21,7 @@ export interface Book {
   description?: string;
   tags?: string;
   addedOn?: string;
+  shelf?: string;
 }
 
 export const bookService = {
