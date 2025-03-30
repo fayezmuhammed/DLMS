@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { Book, bookService } from '@/services/bookService';
+import { transactionService } from '@/services/transactionService';
 import api from '@/utils/api';
 
 // Interface for User type
@@ -22,7 +23,7 @@ const BookDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState<User | null>(null);
-  const [reserving, setReserving] = useState(false);
+  const [borrowing, setBorrowing] = useState(false);
   const [addingToWishlist, setAddingToWishlist] = useState(false);
 
   // Check if user is logged in
@@ -87,58 +88,53 @@ const BookDetailPage: React.FC = () => {
     }
   }, [id]);
 
-  const handleReserveBook = async () => {
+  const handleBorrowBook = async () => {
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please log in to reserve books",
+        description: "Please log in to borrow books",
         variant: "destructive"
       });
       navigate('/login');
       return;
     }
 
-    try {
-      setReserving(true);
-      const response = await api.post('/transactions/reserved-book', 
-        { bookId: book?._id },
-        { 
-          headers: { 
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          }
-        }
-      );
-      
-      if (response.data.success) {
-        // Send reservation confirmation email
-        await api.post('/transactions/send-reservation-email', {
-          userId: user._id,
-          bookId: book?._id
-        }, {
-          headers: { 
-            Authorization: `Bearer ${localStorage.getItem('token')}` 
-          }
-        });
+    if (!book) return;
 
+    try {
+      setBorrowing(true);
+      
+      const response = await transactionService.borrowBook(book._id);
+      
+      if (response.success) {
         toast({
           title: "Success",
-          description: "Book reserved successfully. A confirmation email has been sent to your registered email address.",
+          description: "Book borrowed successfully.",
         });
-        // Refresh book data
+        // Refresh book data to update status
         if (id) {
           const updatedBookResponse = await api.get(`/books/${id}`);
           setBook(updatedBookResponse.data.book);
         }
+        
+        // Redirect to transactions page
+        navigate('/transactions');
+      } else {
+        toast({
+          title: "Borrowing failed",
+          description: response.message || "Failed to borrow book",
+          variant: "destructive"
+        });
       }
     } catch (err: any) {
-      console.error('Error reserving book:', err);
+      console.error('Error borrowing book:', err);
       toast({
-        title: "Reservation failed",
-        description: err.response?.data?.message || "Failed to reserve book",
+        title: "Borrowing failed",
+        description: err.response?.data?.message || "Failed to borrow book. The book may not be available.",
         variant: "destructive"
       });
     } finally {
-      setReserving(false);
+      setBorrowing(false);
     }
   };
 
@@ -181,6 +177,8 @@ const BookDetailPage: React.FC = () => {
     );
   }
 
+  const isAvailable = book.status === 'Available';
+
   return (
     <div>
       <div className="mb-6">
@@ -209,10 +207,10 @@ const BookDetailPage: React.FC = () => {
               <>
                 <Button 
                   className="w-full" 
-                  disabled={book.status !== 'Available' || reserving}
-                  onClick={handleReserveBook}
+                  disabled={!isAvailable || borrowing}
+                  onClick={handleBorrowBook}
                 >
-                  {reserving ? 'Processing...' : book.status === 'Available' ? 'Reserve Book' : 'Currently Unavailable'}
+                  {borrowing ? 'Processing...' : isAvailable ? 'Borrow Book' : 'Currently Unavailable'}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -226,7 +224,7 @@ const BookDetailPage: React.FC = () => {
             )}
             {!user && (
               <Button className="w-full" onClick={() => navigate('/login')}>
-                Login to Reserve
+                Login to Borrow
               </Button>
             )}
           </div>
