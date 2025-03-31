@@ -79,4 +79,15 @@ exports.authorize = (...roles) => {
         }
         next();
     };
+};
+
+// Admin middleware
+exports.admin = (req, res, next) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({
+            success: false,
+            message: 'Admin access required for this route'
+        });
+    }
+    next();
 }; 

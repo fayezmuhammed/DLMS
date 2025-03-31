@@ -142,7 +142,7 @@ const BooksPage: React.FC = () => {
             <Card key={book._id} className="overflow-hidden flex flex-col h-full">
               <div className="aspect-[3/4] relative">
                 <img 
-                  src={book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
+                  src={book.coverImage || book.image || book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
                   alt={book.title} 
                   className="object-cover w-full h-full"
                 />

@@ -155,9 +155,9 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
                 required
               />
               <div className="flex justify-end mt-1">
-                <button type="button" className="text-sm text-gray-400 hover:text-gray-600">
-                  forget password?
-                </button>
+                <Link to="/forgot-password" className="text-sm text-gray-400 hover:text-gray-600">
+                  Forgot password?
+                </Link>
               </div>
             </div>
             

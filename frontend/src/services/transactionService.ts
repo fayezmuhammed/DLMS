@@ -1,5 +1,6 @@
 import api from '../utils/api';
 import { Book } from './bookService';
+import { BorrowingRules } from './settingsService';
 
 interface User {
   _id: string;
@@ -16,6 +17,18 @@ export interface Transaction {
   dueDate: string;
   status: 'borrowed' | 'returned' | 'overdue';
   createdAt: string;
+}
+
+interface IssueBookParams {
+  bookId: string;
+  userId: string;
+  issueDate: string;
+  dueDate: string;
+}
+
+export interface FineCalculation {
+  daysOverdue: number;
+  fineAmount: number;
 }
 
 export const transactionService = {
@@ -53,5 +66,28 @@ export const transactionService = {
   async getBookTransactions(bookId: string) {
     const response = await api.get(`/transactions/book/${bookId}`);
     return response.data;
+  },
+
+  async issueBook(params: IssueBookParams) {
+    const response = await api.post('/transactions/issue', params);
+    return response.data;
+  },
+
+  // Utility functions
+  calculateOverdueDays(dueDate: string | Date): number {
+    const today = new Date();
+    const due = new Date(dueDate);
+    const diffTime = today.getTime() - due.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays > 0 ? diffDays : 0;
+  },
+
+  calculateFine(dueDate: string | Date, rules: BorrowingRules): FineCalculation {
+    const daysOverdue = this.calculateOverdueDays(dueDate);
+    const fineAmount = daysOverdue * rules.finePerDay;
+    return {
+      daysOverdue,
+      fineAmount: parseFloat(fineAmount.toFixed(2))
+    };
   }
 }; 

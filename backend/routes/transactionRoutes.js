@@ -8,7 +8,8 @@ const {
     getActiveTransactions,
     getOverdueTransactions,
     getStudentDues,
-    getBookTransactions
+    getBookTransactions,
+    issueBook
 } = require('../controllers/transactionController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -25,5 +26,6 @@ router.get('/active', protect, authorize('admin'), getActiveTransactions);
 router.get('/overdue', protect, authorize('admin'), getOverdueTransactions);
 router.get('/student-dues/:userId', protect, authorize('admin'), getStudentDues);
 router.get('/book/:bookId', protect, authorize('admin'), getBookTransactions);
+router.post('/issue', protect, authorize('admin'), issueBook);
 
 module.exports = router; 

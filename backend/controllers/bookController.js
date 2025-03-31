@@ -1,16 +1,10 @@
 const Book = require('../models/Book');
 const multer = require('multer');
 const path = require('path');
+const cloudinaryService = require('../services/cloudinaryService');
 
-// Configure multer for file upload
-const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-        cb(null, 'uploads/books');
-    },
-    filename: function(req, file, cb) {
-        cb(null, `${Date.now()}-${file.originalname}`);
-    }
-});
+// Configure multer for memory storage (instead of disk)
+const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
@@ -23,6 +17,9 @@ const upload = multer({
             return cb(null, true);
         }
         cb(new Error('Only image files are allowed!'));
+    },
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
     }
 }).single('image');
 
@@ -144,11 +141,25 @@ exports.addBook = async (req, res) => {
                 }
             }
 
+            let imageUrl = '';
+            let imagePublicId = '';
+            
+            // Upload image to Cloudinary if provided
+            if (req.file) {
+                const result = await cloudinaryService.uploadBookCover(
+                    req.file.buffer,
+                    req.file.originalname
+                );
+                imageUrl = result.secure_url;
+                imagePublicId = result.public_id;
+            }
+
             const bookData = {
                 ...req.body,
                 isbn: req.body.isbn.trim(),
                 bookNo: req.body.bookNo.trim(),
-                image: req.file ? `/uploads/books/${req.file.filename}` : undefined
+                image: imageUrl || undefined,
+                imagePublicId: imagePublicId || undefined
             };
 
             // Convert copies to number if it's a string
@@ -179,29 +190,64 @@ exports.addBook = async (req, res) => {
 // @route   PUT /api/books/update/:id
 // @access  Private/Admin
 exports.updateBook = async (req, res) => {
-    try {
-        const book = await Book.findByIdAndUpdate(req.params.id, req.body, {
-            new: true,
-            runValidators: true
-        }).populate('category', 'name');
-
-        if (!book) {
-            return res.status(404).json({
+    upload(req, res, async function(err) {
+        if (err) {
+            return res.status(400).json({
                 success: false,
-                message: 'Book not found'
+                message: err.message
             });
         }
 
-        res.json({
-            success: true,
-            data: book
-        });
-    } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
-    }
+        try {
+            // Find the existing book
+            const existingBook = await Book.findById(req.params.id);
+            
+            if (!existingBook) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Book not found'
+                });
+            }
+            
+            // Update image if a new one is provided
+            let bookData = { ...req.body };
+            
+            if (req.file) {
+                const result = await cloudinaryService.uploadBookCover(
+                    req.file.buffer,
+                    req.file.originalname
+                );
+                bookData.image = result.secure_url;
+                bookData.imagePublicId = result.public_id;
+                
+                // Delete previous image from Cloudinary if it exists
+                if (existingBook.imagePublicId) {
+                    try {
+                        await cloudinaryService.deleteFile(existingBook.imagePublicId);
+                    } catch (deleteError) {
+                        console.error('Error deleting old image:', deleteError);
+                        // Continue with the update even if delete fails
+                    }
+                }
+            }
+            
+            // Update book
+            const book = await Book.findByIdAndUpdate(req.params.id, bookData, {
+                new: true,
+                runValidators: true
+            }).populate('category', 'name');
+
+            res.json({
+                success: true,
+                data: book
+            });
+        } catch (error) {
+            res.status(400).json({
+                success: false,
+                message: error.message
+            });
+        }
+    });
 };
 
 // @desc    Delete book
@@ -209,7 +255,7 @@ exports.updateBook = async (req, res) => {
 // @access  Private/Admin
 exports.deleteBook = async (req, res) => {
     try {
-        const book = await Book.findByIdAndDelete(req.params.id);
+        const book = await Book.findById(req.params.id);
 
         if (!book) {
             return res.status(404).json({
@@ -217,6 +263,18 @@ exports.deleteBook = async (req, res) => {
                 message: 'Book not found'
             });
         }
+
+        // Delete image from Cloudinary if it exists
+        if (book.imagePublicId) {
+            try {
+                await cloudinaryService.deleteFile(book.imagePublicId);
+            } catch (deleteError) {
+                console.error('Error deleting image:', deleteError);
+                // Continue with the deletion even if image delete fails
+            }
+        }
+
+        await Book.findByIdAndDelete(req.params.id);
 
         res.json({
             success: true,

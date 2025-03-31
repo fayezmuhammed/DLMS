@@ -6,6 +6,8 @@ import { Toaster } from "@/components/ui/toaster"
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/RegisterPage')); 
 const VerifyOtpPage = lazy(() => import('@/pages/VerifyOtpPage')); 
+const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
+const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const BooksPage = lazy(() => import('@/pages/BooksPage'));
 const BookDetailPage = lazy(() => import('@/pages/BookDetailPage'));
@@ -153,6 +155,26 @@ function App() {
                 <Navigate to="/" replace />
               ) : (
                 <VerifyOtpPage />
+              )
+            }
+          />
+          <Route 
+            path="/forgot-password" 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <ForgotPasswordPage />
+              )
+            }
+          />
+          <Route 
+            path="/reset-password/:resettoken" 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <ResetPasswordPage />
               )
             }
           />

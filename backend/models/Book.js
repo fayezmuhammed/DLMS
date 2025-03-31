@@ -63,6 +63,9 @@ const bookSchema = new mongoose.Schema({
     image: {
         type: String
     },
+    imagePublicId: {
+        type: String
+    },
     createdAt: {
         type: Date,
         default: Date.now

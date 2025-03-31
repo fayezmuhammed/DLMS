@@ -16,6 +16,8 @@ export interface Book {
   status: 'Available' | 'Reserved' | 'Issued' | 'Lost';
   copies: number;
   coverImage?: string;
+  image?: string;
+  imagePublicId?: string;
   imagePath?: string;
   publisher?: string;
   edition?: string;
@@ -33,6 +35,21 @@ export const bookService = {
 
   async getBookById(id: string) {
     const response = await api.get(`/books/${id}`);
+    
+    // If response contains a book property, use it directly
+    if (response.data && response.data.book) {
+      // Make sure image fields are consistent
+      const book = response.data.book;
+      if (book.image && !book.coverImage) {
+        book.coverImage = book.image;
+      }
+      if (book.coverImage && !book.image) {
+        book.image = book.coverImage;
+      }
+      return response.data;
+    }
+    
+    // Otherwise use the original response which might have data.success
     return response.data;
   },
 

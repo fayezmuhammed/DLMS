@@ -111,7 +111,7 @@ const HomePage: React.FC = () => {
                   <div className="space-y-4">
                     <div className="aspect-[3/4] overflow-hidden rounded-lg bg-gray-100">
                       <img 
-                        src={book.coverImage || book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
+                        src={book.coverImage || book.image || book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
                         alt={book.title} 
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />

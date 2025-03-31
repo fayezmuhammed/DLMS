@@ -198,7 +198,7 @@ const BookDetailPage: React.FC = () => {
         <div className="md:col-span-1">
           <div className="rounded-lg overflow-hidden border border-border">
             <img 
-              src={book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
+              src={book.coverImage || book.image || book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
               alt={book.title} 
               className="w-full h-auto object-cover"
             />

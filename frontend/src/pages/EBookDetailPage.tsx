@@ -196,7 +196,7 @@ const EBookDetailPage: React.FC = () => {
         <div className="md:col-span-1">
           <div className="rounded-lg overflow-hidden border border-border">
             <img 
-              src={ebook.coverImage || 'https://placehold.co/400x600?text=No+Cover'} 
+              src={ebook.coverImage || ebook.image || ebook.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
               alt={ebook.title} 
               className="w-full h-auto object-cover"
             />
@@ -363,7 +363,7 @@ const EBookDetailPage: React.FC = () => {
                   <Card key={relatedEbook._id} className="overflow-hidden">
                     <div className="aspect-[3/4] relative">
                       <img 
-                        src={relatedEbook.coverImage || 'https://placehold.co/400x600?text=No+Cover'} 
+                        src={relatedEbook.coverImage || relatedEbook.image || relatedEbook.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
                         alt={relatedEbook.title} 
                         className="object-cover w-full h-full"
                       />

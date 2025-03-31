@@ -1,34 +1,102 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download, Printer } from "lucide-react";
 import { useReactToPrint } from 'react-to-print';
 import { format } from 'date-fns';
 import { studentService, Student, Due } from '@/services/studentService';
+
+// Print styles
+const printStyles = `
+  @media print {
+    body * {
+      visibility: hidden;
+    }
+    .print-container, .print-container * {
+      visibility: visible !important;
+    }
+    .print-container {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    .no-print {
+      display: none !important;
+    }
+  }
+`;
 
 const NoDuePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [student, setStudent] = useState<Student | null>(null);
   const [dues, setDues] = useState<Due[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
   const certificateRef = useRef<HTMLDivElement>(null);
 
+  // Inject print styles
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = printStyles;
+    document.head.appendChild(style);
+    
+    return () => {
+      if (style.parentNode) {
+        document.head.removeChild(style);
+      }
+    };
+  }, []);
+
   const handlePrint = useReactToPrint({
     content: () => certificateRef.current,
-    onBeforePrint: () => {
-      console.log("Print ref:", certificateRef.current);
+    documentTitle: `No_Due_Certificate_${student?.admissionNumber || 'Student'}`,
+    onBeforeGetContent: () => {
+      return new Promise<void>((resolve) => {
+        setShowPreview(true);
+        setTimeout(() => {
+          resolve();
+        }, 500);
+      });
     },
+    onAfterPrint: () => {
+      setShowPreview(false);
+    },
+    removeAfterPrint: false,
+    suppressErrors: false,
     onPrintError: (error) => {
+      console.error("Print error:", error);
       toast({
         title: "Error",
         description: "Failed to print: " + error,
         variant: "destructive",
       });
-    }
+      setShowPreview(false);
+    },
+    copyStyles: true,
+    pageStyle: "@page { size: A4; margin: 2cm; }",
   });
+
+  const downloadCertificate = () => {
+    if (student) {
+      console.log("Attempting to print certificate");
+      handlePrint();
+    } else {
+      toast({
+        title: "Error",
+        description: "No student data available",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) {
@@ -141,33 +209,81 @@ const NoDuePage = () => {
                   </div>
                 </div>
 
-                <div className="mt-6">
-                  <Button onClick={handlePrint}>Print No Due Certificate</Button>
+                <div className="mt-6 flex gap-3">
+                  <Button 
+                    onClick={() => setShowPreview(!showPreview)} 
+                    variant="outline" 
+                    className="flex items-center gap-2"
+                  >
+                    <Printer size={16} />
+                    {showPreview ? 'Hide Preview' : 'Show Preview'}
+                  </Button>
+                  
+                  <Button onClick={downloadCertificate} className="flex items-center gap-2">
+                    <Download size={16} />
+                    Download Certificate
+                  </Button>
                 </div>
 
-                {/* Certificate to print */}
-                <div ref={certificateRef} className="mt-8 border p-8 print:border-0" style={{ display: 'block', visibility: 'visible' }}>
-                  <div className="text-center mb-8">
-                    <h2 className="text-2xl font-bold">No Due Certificate</h2>
-                    <p className="text-lg">Library Department</p>
+                {showPreview && (
+                  <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-200">
+                    <p className="text-sm text-blue-800 mb-2">
+                      <strong>Preview Mode:</strong> Certificate ready for download
+                    </p>
+                    <p className="text-xs text-blue-700">
+                      Click "Download Certificate" to save as PDF
+                    </p>
                   </div>
-                  
-                  <div className="mb-8">
-                    <p>This is to certify that</p>
-                    <p className="font-bold text-xl my-2">{student.name}</p>
-                    <p>Admission Number: {student.admissionNumber}</p>
-                    <p>Batch: {student.batch}</p>
-                    <p>has no outstanding dues in the library.</p>
-                  </div>
+                )}
 
-                  <div className="mt-16">
-                    <div className="flex justify-between">
-                      <div>
-                        <p className="font-bold">Head Librarian</p>
-                        <p>Library Department</p>
+                {/* Certificate Print Wrapper */}
+                <div className="certificate-wrapper" style={{ overflow: 'hidden', height: showPreview ? 'auto' : '0' }}>
+                  {/* Certificate to print */}
+                  <div 
+                    ref={certificateRef} 
+                    className="print-container bg-white" 
+                    style={{ 
+                      width: '210mm',
+                      minHeight: '297mm',
+                      margin: '0 auto',
+                      padding: '20mm',
+                      boxSizing: 'border-box',
+                      border: '1px solid #ddd',
+                      visibility: showPreview ? 'visible' : 'hidden',
+                      position: showPreview ? 'relative' : 'absolute',
+                    }}
+                  >
+                    <div className="text-center mb-8">
+                      <h2 className="text-2xl font-bold uppercase">No Due Certificate</h2>
+                      <p className="text-lg mt-2">Library Department</p>
+                      <div className="border-b-2 border-gray-300 w-1/2 mx-auto mt-4"></div>
+                    </div>
+                    
+                    <div className="mb-12 mt-12 text-center">
+                      <p className="mb-4">This is to certify that</p>
+                      <p className="font-bold text-xl my-2">{student.name}</p>
+                      <p className="mb-2">Admission Number: <span className="font-semibold">{student.admissionNumber}</span></p>
+                      <p className="mb-8">Batch: <span className="font-semibold">{student.batch}</span></p>
+                      <p className="text-lg">has <span className="font-bold underline">NO OUTSTANDING DUES</span> in the library.</p>
+                      <p className="mt-6">This certificate is issued upon request for official purposes.</p>
+                    </div>
+
+                    <div className="mt-24">
+                      <div className="flex justify-between">
+                        <div>
+                          <div className="border-t-2 border-black w-32"></div>
+                          <p className="font-bold mt-2">Head Librarian</p>
+                          <p>Library Department</p>
+                        </div>
+                        <div>
+                          <div className="border-t-2 border-black w-32"></div>
+                          <p className="font-bold mt-2">Principal</p>
+                          <p>School Seal</p>
+                        </div>
                       </div>
-                      <div>
+                      <div className="text-right mt-8">
                         <p>Date: {format(new Date(), 'PPP')}</p>
+                        <p className="text-sm mt-2">Certificate No: LIB-{student.admissionNumber}-{format(new Date(), 'yyyyMMdd')}</p>
                       </div>
                     </div>
                   </div>

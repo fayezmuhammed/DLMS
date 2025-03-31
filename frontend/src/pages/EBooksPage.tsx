@@ -159,7 +159,7 @@ const EBooksPage: React.FC = () => {
             <Card key={ebook._id} className="overflow-hidden flex flex-col h-full hover:shadow-md transition-shadow">
               <div className="aspect-[3/4] relative">
                 <img 
-                  src={ebook.coverImage || 'https://placehold.co/400x600?text=No+Cover'} 
+                  src={ebook.coverImage || ebook.image || ebook.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
                   alt={ebook.title} 
                   className="object-cover w-full h-full"
                 />

@@ -300,7 +300,7 @@ const DashboardPage: React.FC = () => {
                     <div key={book._id} className="w-40 shrink-0">
                       <div className="mb-2 aspect-[2/3] overflow-hidden rounded-lg">
                         <img 
-                          src={book.coverImage || book.imagePath || 'https://placehold.co/320x480?text=No+Cover'} 
+                          src={book.coverImage || book.image || book.imagePath || 'https://placehold.co/320x480?text=No+Cover'} 
                           alt={book.title} 
                           className="w-full h-full object-cover"
                           onError={(e) => {
@@ -332,7 +332,7 @@ const DashboardPage: React.FC = () => {
                     <div key={ebook._id} className="w-40 shrink-0">
                       <div className="mb-2 aspect-[2/3] overflow-hidden rounded-lg">
                         <img 
-                          src={ebook.coverImage || 'https://placehold.co/320x480?text=No+Cover'} 
+                          src={ebook.coverImage || ebook.image || ebook.imagePath || 'https://placehold.co/320x480?text=No+Cover'} 
                           alt={ebook.title} 
                           className="w-full h-full object-cover"
                           onError={(e) => {

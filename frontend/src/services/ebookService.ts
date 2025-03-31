@@ -9,27 +9,68 @@ export interface EBook {
   category?: string | Category | null;
   status: 'Available' | 'Restricted';
   coverImage?: string;
+  coverImagePublicId?: string;
   publisher?: string;
   edition?: string;
   description?: string;
   tags?: string;
   fileUrl: string;
+  filePublicId?: string;
   fileType: 'pdf' | 'epub' | 'mobi' | 'doc' | 'docx' | 'txt';
   fileSize?: number;
   pages?: number;
   accessRestriction: 'Public' | 'Members' | 'Premium';
   downloadable: boolean;
   createdAt?: string;
+  image?: string;
+  imagePath?: string;
 }
 
 export const ebookService = {
   async getEBooks() {
     const response = await api.get('/ebooks');
+    
+    // Normalize image fields for consistency
+    if (response.data && response.data.data) {
+      response.data.data.forEach((ebook: EBook) => {
+        if (ebook.coverImage && !ebook.image) {
+          ebook.image = ebook.coverImage;
+        }
+        if (ebook.image && !ebook.coverImage) {
+          ebook.coverImage = ebook.image;
+        }
+        if (ebook.imagePath && !ebook.coverImage) {
+          ebook.coverImage = ebook.imagePath;
+        }
+        if (ebook.coverImage && !ebook.imagePath) {
+          ebook.imagePath = ebook.coverImage;
+        }
+      });
+    }
+    
     return response.data;
   },
 
   async getEBook(id: string) {
     const response = await api.get(`/ebooks/${id}`);
+    
+    // Normalize image fields for consistency
+    if (response.data && response.data.data) {
+      const ebook = response.data.data;
+      if (ebook.coverImage && !ebook.image) {
+        ebook.image = ebook.coverImage;
+      }
+      if (ebook.image && !ebook.coverImage) {
+        ebook.coverImage = ebook.image;
+      }
+      if (ebook.imagePath && !ebook.coverImage) {
+        ebook.coverImage = ebook.imagePath;
+      }
+      if (ebook.coverImage && !ebook.imagePath) {
+        ebook.imagePath = ebook.coverImage;
+      }
+    }
+    
     return response.data;
   },
 

@@ -27,6 +27,8 @@ import { format } from 'date-fns';
 import { Transaction, transactionService } from '@/services/transactionService';
 import { bookService, Book } from '@/services/bookService';
 import { toast } from '@/components/ui/use-toast';
+import { userService } from '@/services/userService';
+import settingsService, { BorrowingRules } from '@/services/settingsService';
 
 const TransactionsPageAdmin: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -41,14 +43,23 @@ const TransactionsPageAdmin: React.FC = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [selectedBook, setSelectedBook] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedUserRole, setSelectedUserRole] = useState<string>('student');
   const [issueDate, setIssueDate] = useState<Date | undefined>(new Date());
   const [dueDate, setDueDate] = useState<Date | undefined>(
-    new Date(new Date().setDate(new Date().getDate() + 14)) // Default due date is 14 days from now
+    new Date(new Date().setDate(new Date().getDate() + 14)) // Default due date
   );
   const [issuingBook, setIssuingBook] = useState(false);
+  const [borrowingRules, setBorrowingRules] = useState<BorrowingRules>({
+    maxBooksStudent: 3,
+    maxBooksTeacher: 5,
+    maxDaysStudent: 14,
+    maxDaysTeacher: 30,
+    finePerDay: 0.5
+  });
 
   useEffect(() => {
     fetchTransactions();
+    fetchBorrowingRules();
   }, [activeTab]);
 
   useEffect(() => {
@@ -122,11 +133,37 @@ const TransactionsPageAdmin: React.FC = () => {
 
   const fetchAvailableBooks = async () => {
     try {
+      // Get all books, not just those with status 'Available'
       const response = await bookService.getBooks();
+      
       if (response.success && response.data) {
-        // Filter only available books
-        const available = response.data.filter((book: Book) => book.status === 'Available');
-        setAvailableBooks(available);
+        // Filter to find books that have available copies
+        const availableBooksData = await Promise.all(
+          response.data.map(async (book) => {
+            // Count active transactions for each book
+            const transactionsResponse = await transactionService.getBookTransactions(book._id);
+            
+            if (transactionsResponse.success) {
+              const activeTransactions = transactionsResponse.data.filter(
+                (tx) => tx.status === 'borrowed' || tx.status === 'overdue'
+              ).length;
+              
+              // Book is available if it has more copies than active transactions
+              return book.copies > activeTransactions ? book : null;
+            }
+            
+            return null;
+          })
+        );
+        
+        // Filter out null values
+        setAvailableBooks(availableBooksData.filter(book => book !== null));
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load available books.",
+          variant: "destructive",
+        });
       }
     } catch (err) {
       console.error('Error fetching available books:', err);
@@ -140,18 +177,38 @@ const TransactionsPageAdmin: React.FC = () => {
 
   const fetchUsers = async () => {
     try {
-      // This would be replaced with an actual API call to get users
-      // For now, we'll simulate with a placeholder
-      setUsers([
-        { _id: '1', name: 'John Doe', email: 'john@example.com' },
-        { _id: '2', name: 'Jane Smith', email: 'jane@example.com' },
-        { _id: '3', name: 'Robert Johnson', email: 'robert@example.com' }
-      ]);
+      // Replace the mock data with a real API call using userService
+      const response = await userService.getUsers();
+      if (response.success && response.data) {
+        setUsers(response.data);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load users.",
+          variant: "destructive",
+        });
+      }
     } catch (err) {
       console.error('Error fetching users:', err);
       toast({
         title: "Error",
         description: "Failed to load users.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const fetchBorrowingRules = async () => {
+    try {
+      const response = await settingsService.getBorrowingRules();
+      if (response.success && response.data) {
+        setBorrowingRules(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching borrowing rules:', err);
+      toast({
+        title: "Error",
+        description: "Failed to load borrowing rules.",
         variant: "destructive",
       });
     }
@@ -176,9 +233,13 @@ const TransactionsPageAdmin: React.FC = () => {
     try {
       setIssuingBook(true);
       
-      // In a real implementation, you would call an API to issue the book
-      // For now, we'll simulate it with the existing borrow API
-      const response = await transactionService.borrowBook(selectedBook);
+      // Use the transactionService to issue the book to the selected user
+      const response = await transactionService.issueBook({
+        bookId: selectedBook,
+        userId: selectedUser,
+        issueDate: issueDate.toISOString(),
+        dueDate: dueDate.toISOString()
+      });
       
       if (response.success) {
         toast({
@@ -186,9 +247,9 @@ const TransactionsPageAdmin: React.FC = () => {
           description: "Book issued successfully",
         });
         
-        setIsIssueDialogOpen(false);
-        setSelectedBook(null);
-        setSelectedUser(null);
+    setIsIssueDialogOpen(false);
+    setSelectedBook(null);
+    setSelectedUser(null);
         
         // Refresh transactions
         fetchTransactions();
@@ -264,11 +325,12 @@ const TransactionsPageAdmin: React.FC = () => {
   };
 
   const calculateDaysOverdue = (dueDate: string) => {
-    const today = new Date();
-    const due = new Date(dueDate);
-    const diffTime = today.getTime() - due.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays > 0 ? diffDays : 0;
+    return transactionService.calculateOverdueDays(dueDate);
+  };
+
+  const calculateFine = (dueDate: string) => {
+    const { fineAmount } = transactionService.calculateFine(dueDate, borrowingRules);
+    return fineAmount;
   };
 
   // Helper function to get book details from transaction
@@ -279,9 +341,9 @@ const TransactionsPageAdmin: React.FC = () => {
         author: transaction.book.author,
         id: transaction.book._id
       };
-    }
-    
-    return {
+        }
+        
+        return {
       title: 'Unknown Book',
       author: 'Unknown Author',
       id: transaction.book
@@ -306,7 +368,7 @@ const TransactionsPageAdmin: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Manage Transactions</h1>
+        <h1 className="text-2xl font-bold">Manage Transactions</h1>
           <p className="text-muted-foreground">
             View and manage borrowing records for all users
           </p>
@@ -343,7 +405,26 @@ const TransactionsPageAdmin: React.FC = () => {
                 <Label htmlFor="user" className="text-right">User</Label>
                 <Select 
                   value={selectedUser || ''} 
-                  onValueChange={setSelectedUser}
+                  onValueChange={(userId) => {
+                    setSelectedUser(userId);
+                    
+                    // Find the selected user to get their role
+                    const user = users.find(u => u._id === userId);
+                    if (user) {
+                      const userRole = user.role.toLowerCase();
+                      setSelectedUserRole(userRole);
+                      
+                      // Set due date based on user role if issue date exists
+                      if (issueDate) {
+                        const daysToAdd = userRole === 'teacher' ? 
+                          borrowingRules.maxDaysTeacher : borrowingRules.maxDaysStudent;
+                        
+                        const newDueDate = new Date(issueDate);
+                        newDueDate.setDate(newDueDate.getDate() + daysToAdd);
+                        setDueDate(newDueDate);
+                      }
+                    }
+                  }}
                 >
                   <SelectTrigger className="col-span-3">
                     <SelectValue placeholder="Select user" />
@@ -351,7 +432,7 @@ const TransactionsPageAdmin: React.FC = () => {
                   <SelectContent>
                     {users.map(user => (
                       <SelectItem key={user._id} value={user._id}>
-                        {user.name} ({user.email})
+                        {user.name} ({user.email}) - {user.role}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -374,7 +455,19 @@ const TransactionsPageAdmin: React.FC = () => {
                       <Calendar
                         mode="single"
                         selected={issueDate}
-                        onSelect={setIssueDate}
+                        onSelect={(date) => {
+                          setIssueDate(date);
+                          
+                          // Recalculate due date when issue date changes
+                          if (date && selectedUser) {
+                            const daysToAdd = selectedUserRole === 'teacher' ? 
+                              borrowingRules.maxDaysTeacher : borrowingRules.maxDaysStudent;
+                            
+                            const newDueDate = new Date(date);
+                            newDueDate.setDate(newDueDate.getDate() + daysToAdd);
+                            setDueDate(newDueDate);
+                          }
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -384,26 +477,31 @@ const TransactionsPageAdmin: React.FC = () => {
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="dueDate" className="text-right">Due Date</Label>
                 <div className="col-span-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dueDate ? format(dueDate, 'PPP') : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={dueDate}
-                        onSelect={setDueDate}
-                        initialFocus
-                        disabled={(date) => date < new Date()}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <div className="flex gap-2 items-center">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dueDate ? format(dueDate, 'PPP') : <span>Pick a date</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <Calendar
+                          mode="single"
+                          selected={dueDate}
+                          onSelect={setDueDate}
+                          initialFocus
+                          disabled={(date) => date < (issueDate || new Date())}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <div className="text-xs text-muted-foreground">
+                      Based on {selectedUserRole === 'teacher' ? 'teacher' : 'student'} borrowing rules
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -422,10 +520,10 @@ const TransactionsPageAdmin: React.FC = () => {
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
-          <Input
+        <Input
             placeholder="Search by book title or user..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-md"
           />
         </div>
@@ -504,8 +602,10 @@ const TransactionsPageAdmin: React.FC = () => {
                           </div>
                         </div>
                         {isOverdue && (
-                          <div className="text-red-600 font-medium">
+                          <div className="text-xs text-red-600 mt-1">
                             {calculateDaysOverdue(transaction.dueDate)} days overdue
+                            <br />
+                            Fine: ${calculateFine(transaction.dueDate)}
                           </div>
                         )}
                       </div>

@@ -52,10 +52,16 @@ const eBookSchema = new mongoose.Schema({
     coverImage: {
         type: String
     },
+    coverImagePublicId: {
+        type: String
+    },
     // E-book specific fields
     fileUrl: {
         type: String,
         required: [true, 'Please upload the e-book file']
+    },
+    filePublicId: {
+        type: String
     },
     fileType: {
         type: String,

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import settingsService, { Settings } from '@/services/settingsService';
 
 interface Category {
   _id: string;
@@ -41,11 +42,53 @@ const SettingsPage: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [newCategory, setNewCategory] = useState({ name: '', description: '' });
   const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchCategories();
+    fetchSettings();
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await settingsService.getSettings();
+      if (response.success && response.data) {
+        const settings = response.data;
+        
+        // Update general settings
+        setGeneralSettings({
+          libraryName: settings.libraryName,
+          email: settings.email,
+          phone: settings.phone,
+          address: settings.address,
+        });
+        
+        // Update borrowing settings
+        setBorrowingSettings({
+          maxBooksStudent: settings.maxBooksStudent,
+          maxBooksTeacher: settings.maxBooksTeacher,
+          maxDaysStudent: settings.maxDaysStudent,
+          maxDaysTeacher: settings.maxDaysTeacher,
+          finePerDay: settings.finePerDay,
+        });
+        
+        // Update notification settings
+        setNotificationSettings({
+          emailNotifications: settings.emailNotifications,
+          dueDateReminders: settings.dueDateReminders,
+          overdueNotifications: settings.overdueNotifications,
+          newBookNotifications: settings.newBookNotifications,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch settings',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const fetchCategories = async () => {
     try {
@@ -122,20 +165,48 @@ const SettingsPage: React.FC = () => {
     }));
   };
 
-  const handleSaveSettings = () => {
-    // In a real app, this would save settings to the backend
-    alert('Settings saved successfully!');
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      // Combine all settings into one object
+      const combinedSettings = {
+        ...generalSettings,
+        ...borrowingSettings,
+        ...notificationSettings
+      };
+      
+      const response = await settingsService.updateSettings(combinedSettings);
+      
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'Settings saved successfully!'
+        });
+      } else {
+        throw new Error(response.message || 'Failed to save settings');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save settings',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Settings</h1>
-        <Button onClick={handleSaveSettings}>Save All Settings</Button>
+        <Button onClick={handleSaveSettings} disabled={isSaving}>
+          {isSaving ? 'Saving...' : 'Save All Settings'}
+        </Button>
       </div>
 
       <Tabs defaultValue="general">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="borrowing">Borrowing Rules</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
