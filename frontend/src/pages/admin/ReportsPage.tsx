@@ -9,47 +9,19 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { CalendarIcon, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { reportService, BorrowingTrendData, CategoryData, OverdueData, PopularBookData } from '@/services/reportService';
+import { useToast } from '@/components/ui/use-toast';
 
-// Initial mock data for reports
-const initialBorrowingData = [
-  { month: 'Jan', count: 45 },
-  { month: 'Feb', count: 52 },
-  { month: 'Mar', count: 38 },
-  { month: 'Apr', count: 65 },
-  { month: 'May', count: 48 },
-  { month: 'Jun', count: 59 },
-  { month: 'Jul', count: 42 },
-  { month: 'Aug', count: 37 },
-  { month: 'Sep', count: 68 },
-  { month: 'Oct', count: 51 },
-  { month: 'Nov', count: 43 },
-  { month: 'Dec', count: 39 },
-];
-
-const initialCategoryData = [
-  { name: 'Fiction', value: 35 },
-  { name: 'Non-Fiction', value: 25 },
-  { name: 'Science', value: 15 },
-  { name: 'History', value: 10 },
-  { name: 'Technology', value: 15 },
-];
-
-const initialOverdueData = [
-  { name: 'On Time', value: 75 },
-  { name: 'Overdue', value: 25 },
-];
-
-const initialPopularBooksData = [
-  { name: 'To Kill a Mockingbird', count: 32 },
-  { name: '1984', count: 28 },
-  { name: 'The Great Gatsby', count: 24 },
-  { name: 'Pride and Prejudice', count: 21 },
-  { name: 'The Hobbit', count: 19 },
-];
+// Initial empty data structures for reports
+const initialBorrowingData: BorrowingTrendData[] = [];
+const initialCategoryData: CategoryData[] = [];
+const initialOverdueData: OverdueData[] = [];
+const initialPopularBooksData: PopularBookData[] = [];
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
 const ReportsPage: React.FC = () => {
+  const { toast } = useToast();
   const [reportType, setReportType] = useState('borrowing');
   const [startDate, setStartDate] = useState<Date | undefined>(
     new Date(new Date().setMonth(new Date().getMonth() - 1))
@@ -59,75 +31,94 @@ const ReportsPage: React.FC = () => {
   const [reportGenerated, setReportGenerated] = useState(false);
   
   // State for each type of report data
-  const [borrowingData, setBorrowingData] = useState(initialBorrowingData);
-  const [categoryData, setCategoryData] = useState(initialCategoryData);
-  const [overdueData, setOverdueData] = useState(initialOverdueData);
-  const [popularBooksData, setPopularBooksData] = useState(initialPopularBooksData);
+  const [borrowingData, setBorrowingData] = useState<BorrowingTrendData[]>(initialBorrowingData);
+  const [categoryData, setCategoryData] = useState<CategoryData[]>(initialCategoryData);
+  const [overdueData, setOverdueData] = useState<OverdueData[]>(initialOverdueData);
+  const [popularBooksData, setPopularBooksData] = useState<PopularBookData[]>(initialPopularBooksData);
 
-  // Helper function to generate random data based on date range
-  const generateRandomData = (min: number, max: number) => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  };
-
-  const handleGenerateReport = () => {
+  const handleGenerateReport = async () => {
     if (!startDate || !endDate) {
-      alert('Please select both start and end dates');
+      toast({
+        title: "Error",
+        description: "Please select both start and end dates",
+        variant: "destructive",
+      });
       return;
     }
     
     setIsGenerating(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      // Generate new data based on report type and date range
+    try {
+      // Fetch data based on report type
       switch (reportType) {
         case 'borrowing':
-          const newBorrowingData = [...initialBorrowingData].map(item => ({
-            ...item,
-            count: generateRandomData(30, 80)
-          }));
-          setBorrowingData(newBorrowingData);
+          const borrowingResponse = await reportService.getBorrowingTrends(startDate, endDate);
+          if (borrowingResponse.success) {
+            setBorrowingData(borrowingResponse.data);
+          } else {
+            throw new Error(borrowingResponse.message || 'Failed to fetch borrowing trends');
+          }
           break;
         
         case 'category':
-          const newCategoryData = [...initialCategoryData].map(item => ({
-            ...item,
-            value: generateRandomData(5, 40)
-          }));
-          setCategoryData(newCategoryData);
+          const categoryResponse = await reportService.getCategoryDistribution(startDate, endDate);
+          if (categoryResponse.success) {
+            setCategoryData(categoryResponse.data);
+          } else {
+            throw new Error(categoryResponse.message || 'Failed to fetch category distribution');
+          }
           break;
         
         case 'overdue':
-          const onTimeValue = generateRandomData(50, 90);
-          const newOverdueData = [
-            { name: 'On Time', value: onTimeValue },
-            { name: 'Overdue', value: 100 - onTimeValue }
-          ];
-          setOverdueData(newOverdueData);
+          const overdueResponse = await reportService.getOverdueAnalysis(startDate, endDate);
+          if (overdueResponse.success) {
+            setOverdueData(overdueResponse.data);
+          } else {
+            throw new Error(overdueResponse.message || 'Failed to fetch overdue analysis');
+          }
           break;
         
         case 'popular':
-          const newPopularBooksData = [...initialPopularBooksData].map(item => ({
-            ...item,
-            count: generateRandomData(15, 50)
-          }));
-          setPopularBooksData(newPopularBooksData);
+          const popularResponse = await reportService.getPopularBooks(startDate, endDate);
+          if (popularResponse.success) {
+            setPopularBooksData(popularResponse.data);
+          } else {
+            throw new Error(popularResponse.message || 'Failed to fetch popular books');
+          }
           break;
       }
       
-      setIsGenerating(false);
       setReportGenerated(true);
-    }, 1000);
+      toast({
+        title: "Success",
+        description: "Report generated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate report",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleDownloadReport = () => {
     if (!reportGenerated) {
-      alert('Please generate a report first before downloading');
+      toast({
+        title: "Error",
+        description: "Please generate a report first before downloading",
+        variant: "destructive",
+      });
       return;
     }
     
     // In a real app, this would generate and download a CSV or PDF file
-    alert(`Downloading ${reportType} report for period: ${format(startDate!, 'PP')} to ${format(endDate!, 'PP')}`);
+    toast({
+      title: "Downloading Report",
+      description: `${reportType} report for period: ${format(startDate!, 'PP')} to ${format(endDate!, 'PP')}`,
+    });
   };
 
   return (
@@ -254,24 +245,30 @@ const ReportsPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={borrowingData}
-                    margin={{
-                      top: 20,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="count" name="Books Borrowed" fill="#8884d8" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {borrowingData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={borrowingData}
+                      margin={{
+                        top: 20,
+                        right: 30,
+                        left: 20,
+                        bottom: 5,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="count" name="Books Borrowed" fill="#8884d8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No data available. Please generate a report.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -300,26 +297,32 @@ const ReportsPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={categoryData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={150}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value} books`, 'Count']} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                {categoryData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={categoryData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={150}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {categoryData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value} books`, 'Count']} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No data available. Please generate a report.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -348,25 +351,31 @@ const ReportsPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={overdueData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={true}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={150}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      <Cell fill="#4CAF50" />
-                      <Cell fill="#F44336" />
-                    </Pie>
-                    <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
+                {overdueData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={overdueData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={150}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        <Cell fill="#4CAF50" />
+                        <Cell fill="#F44336" />
+                      </Pie>
+                      <Tooltip formatter={(value) => [`${value}%`, 'Percentage']} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No data available. Please generate a report.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -395,25 +404,31 @@ const ReportsPage: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="h-[400px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={popularBooksData}
-                    layout="vertical"
-                    margin={{
-                      top: 20,
-                      right: 30,
-                      left: 100,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="count" name="Times Borrowed" fill="#82ca9d" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {popularBooksData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart
+                      data={popularBooksData}
+                      layout="vertical"
+                      margin={{
+                        top: 20,
+                        right: 30,
+                        left: 100,
+                        bottom: 5,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="name" type="category" />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="count" name="Times Borrowed" fill="#82ca9d" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No data available. Please generate a report.
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

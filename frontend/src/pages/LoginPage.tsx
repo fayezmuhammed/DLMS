@@ -1,17 +1,33 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
 
+interface LocationState {
+  message?: string;
+}
+
 interface LoginPageProps {
-  onLogin: (userData: any) => void;
+  onLogin?: (userData: any) => void;
 }
 
 const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
-  const [email, setEmail] = useState('admin@dlms.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('fayezmuhammed24@gmail.com');
+  const [password, setPassword] = useState('fayez123');
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as LocationState;
+
+  useEffect(() => {
+    // Check if there's a message in the location state (e.g. after verification)
+    if (state?.message) {
+      setSuccessMessage(state.message);
+      // Clear state after showing message
+      window.history.replaceState({}, document.title);
+    }
+  }, [state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,19 +36,33 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     try {
       setIsLoading(true);
       setError('');
+      setSuccessMessage('');
       
       const response = await api.post('/auth/login', {
         email,
         password
       });
 
-      if (response.data && response.data.data) {
+      if (response.data?.success && response.data?.data) {
         const userData = response.data.data;
-        // Store the token
-        localStorage.setItem('token', userData.token);
-        // Remove token from userData before storing
-        const { token, ...userWithoutToken } = userData;
-        onLogin(userWithoutToken);
+        
+        // Check if user is verified
+        if (!userData.isVerified) {
+          // Redirect to verification page if user is not verified
+          navigate('/verify-otp', { 
+            state: { 
+              email: email,
+              message: 'Please verify your email before logging in.'
+            }
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Remove token from userData before passing to onLogin
+        if (onLogin) {
+          onLogin(userData);
+        }
         
         if (userData.role.toLowerCase() === 'admin') {
           navigate('/admin', { replace: true });
@@ -88,6 +118,12 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           {error && (
             <div className="mb-6 p-3 bg-red-50 text-red-700 rounded-md text-sm">
               {error}
+            </div>
+          )}
+          
+          {successMessage && (
+            <div className="mb-6 p-3 bg-green-50 text-green-700 rounded-md text-sm">
+              {successMessage}
             </div>
           )}
           

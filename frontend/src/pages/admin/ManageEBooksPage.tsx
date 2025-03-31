@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from "@/components/ui/use-toast";
 import { EBook, ebookService } from '@/services/ebookService';
 import { Category, bookService } from '@/services/bookService';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -18,6 +18,7 @@ const ManageEBooksPage: React.FC = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [formSubmitting, setFormSubmitting] = useState(false);
   
   // New e-book form state
@@ -39,6 +40,12 @@ const ManageEBooksPage: React.FC = () => {
   const [ebookFile, setEbookFile] = useState<File | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string>('');
+
+  // Edit e-book state
+  const [editingEBook, setEditingEBook] = useState<EBook | null>(null);
+  const [editCoverImageFile, setEditCoverImageFile] = useState<File | null>(null);
+  const [editEbookFile, setEditEbookFile] = useState<File | null>(null);
+  const [editCoverImagePreview, setEditCoverImagePreview] = useState<string>('');
 
   // Fetch e-books and categories on component mount
   useEffect(() => {
@@ -192,6 +199,119 @@ const ManageEBooksPage: React.FC = () => {
       toast({
         title: "Error",
         description: "Failed to add e-book. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  // Handle edit cover image change
+  const handleEditCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setEditCoverImageFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target && typeof event.target.result === 'string') {
+          setEditCoverImagePreview(event.target.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  // Handle edit e-book file change
+  const handleEditEbookFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setEditEbookFile(e.target.files[0]);
+    }
+  };
+
+  // Handle edit input changes
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (editingEBook) {
+      const { name, value } = e.target;
+      setEditingEBook(prev => prev ? { ...prev, [name]: value } : null);
+    }
+  };
+  
+  // Handle edit select changes
+  const handleEditSelectChange = (name: string, value: string | boolean) => {
+    if (editingEBook) {
+      setEditingEBook(prev => prev ? { ...prev, [name]: value } : null);
+    }
+  };
+
+  // Handle edit e-book submission
+  const handleEditEBook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingEBook) return;
+
+    // Validate form
+    if (!editingEBook.title || !editingEBook.author || !editingEBook.isbn || !editingEBook.category) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Title, Author, ISBN, Category)",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
+      setFormSubmitting(true);
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('title', editingEBook.title);
+      formData.append('author', editingEBook.author);
+      formData.append('isbn', editingEBook.isbn);
+      formData.append('category', typeof editingEBook.category === 'object' ? editingEBook.category._id : editingEBook.category);
+      formData.append('publisher', editingEBook.publisher || '');
+      formData.append('edition', editingEBook.edition || '');
+      formData.append('description', editingEBook.description || '');
+      formData.append('status', editingEBook.status);
+      formData.append('accessRestriction', editingEBook.accessRestriction);
+      formData.append('downloadable', String(editingEBook.downloadable));
+      
+      if (editingEBook.pages) {
+        formData.append('pages', editingEBook.pages.toString());
+      }
+      
+      // Append files if new ones are selected
+      if (editEbookFile) {
+        formData.append('ebook', editEbookFile);
+      }
+      if (editCoverImageFile) {
+        formData.append('coverImage', editCoverImageFile);
+      }
+      
+      // Submit the form
+      await ebookService.updateEBook(editingEBook._id, formData);
+      
+      // Show success message
+      toast({
+        title: "Success",
+        description: "E-book updated successfully",
+      });
+      
+      // Reset form and close dialog
+      setEditingEBook(null);
+      setEditEbookFile(null);
+      setEditCoverImageFile(null);
+      setEditCoverImagePreview('');
+      setIsEditDialogOpen(false);
+      
+      // Refresh e-books list
+      fetchEbooks();
+    } catch (error) {
+      console.error('Error updating e-book:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update e-book. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -533,12 +653,250 @@ const ManageEBooksPage: React.FC = () => {
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex justify-center space-x-2">
-                          <Button 
-                            className="bg-secondary h-9 px-3 rounded-md"
-                            onClick={() => alert('Edit feature will be implemented')}
-                          >
-                            Edit
-                          </Button>
+                          <Dialog open={isEditDialogOpen && editingEBook?._id === ebook._id} onOpenChange={(open) => {
+                            setIsEditDialogOpen(open);
+                            if (!open) {
+                              setEditingEBook(null);
+                              setEditEbookFile(null);
+                              setEditCoverImageFile(null);
+                              setEditCoverImagePreview('');
+                            }
+                          }}>
+                            <DialogTrigger asChild>
+                              <Button 
+                                className="bg-secondary h-9 px-3 rounded-md"
+                                onClick={async () => {
+                                  try {
+                                    const response = await ebookService.getEBookById(ebook._id);
+                                    if (response && response.data) {
+                                      setEditingEBook(response.data);
+                                      setEditCoverImagePreview(response.data.coverImage || '');
+                                      setIsEditDialogOpen(true);
+                                    }
+                                  } catch (error) {
+                                    console.error('Error fetching e-book details:', error);
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to fetch e-book details",
+                                      variant: "destructive",
+                                    });
+                                  }
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-[600px]">
+                              <DialogHeader>
+                                <DialogTitle>Edit E-Book</DialogTitle>
+                              </DialogHeader>
+                              
+                              {editingEBook && (
+                                <form onSubmit={handleEditEBook} className="grid gap-4 py-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    {/* Left column */}
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-title">Title*</Label>
+                                        <Input 
+                                          id="edit-title" 
+                                          name="title"
+                                          placeholder="E-book title" 
+                                          value={editingEBook.title}
+                                          onChange={handleEditInputChange}
+                                          required
+                                        />
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-author">Author*</Label>
+                                        <Input 
+                                          id="edit-author" 
+                                          name="author"
+                                          placeholder="Author name" 
+                                          value={editingEBook.author}
+                                          onChange={handleEditInputChange}
+                                          required
+                                        />
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-isbn">ISBN*</Label>
+                                        <Input 
+                                          id="edit-isbn" 
+                                          name="isbn"
+                                          placeholder="ISBN number" 
+                                          value={editingEBook.isbn}
+                                          onChange={handleEditInputChange}
+                                          required
+                                        />
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-category">Category*</Label>
+                                        <Select
+                                          value={typeof editingEBook.category === 'object' ? editingEBook.category._id : editingEBook.category}
+                                          onValueChange={(value) => handleEditSelectChange('category', value)}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select a category" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {categories.map(category => (
+                                              <SelectItem key={category._id} value={category._id}>
+                                                {category.name}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-publisher">Publisher</Label>
+                                        <Input 
+                                          id="edit-publisher" 
+                                          name="publisher"
+                                          placeholder="Publisher name" 
+                                          value={editingEBook.publisher}
+                                          onChange={handleEditInputChange}
+                                        />
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-edition">Edition</Label>
+                                        <Input 
+                                          id="edit-edition" 
+                                          name="edition"
+                                          placeholder="Edition" 
+                                          value={editingEBook.edition}
+                                          onChange={handleEditInputChange}
+                                        />
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Right column */}
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-status">Status</Label>
+                                        <Select
+                                          value={editingEBook.status}
+                                          onValueChange={(value) => handleEditSelectChange('status', value)}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select status" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Available">Available</SelectItem>
+                                            <SelectItem value="Restricted">Restricted</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-accessRestriction">Access Level</Label>
+                                        <Select
+                                          value={editingEBook.accessRestriction}
+                                          onValueChange={(value) => handleEditSelectChange('accessRestriction', value)}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select access level" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="Public">Public</SelectItem>
+                                            <SelectItem value="Members">Members Only</SelectItem>
+                                            <SelectItem value="Premium">Premium Access</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-downloadable">Downloadable</Label>
+                                        <Select
+                                          value={editingEBook.downloadable ? 'true' : 'false'}
+                                          onValueChange={(value) => handleEditSelectChange('downloadable', value === 'true')}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Can be downloaded?" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="true">Yes</SelectItem>
+                                            <SelectItem value="false">No</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-pages">Number of Pages</Label>
+                                        <Input 
+                                          id="edit-pages" 
+                                          name="pages"
+                                          type="number"
+                                          placeholder="Number of pages" 
+                                          value={editingEBook.pages}
+                                          onChange={handleEditInputChange}
+                                        />
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-ebook-file">E-Book File (PDF, EPUB, etc.)</Label>
+                                        <Input 
+                                          id="edit-ebook-file" 
+                                          type="file"
+                                          accept=".pdf,.epub,.mobi,.doc,.docx,.txt"
+                                          onChange={handleEditEbookFileChange}
+                                        />
+                                        {editEbookFile && (
+                                          <p className="text-xs text-muted-foreground">
+                                            Selected: {editEbookFile.name} ({(editEbookFile.size / 1024 / 1024).toFixed(2)} MB)
+                                          </p>
+                                        )}
+                                      </div>
+                                      
+                                      <div className="space-y-2">
+                                        <Label htmlFor="edit-cover-image">Cover Image</Label>
+                                        <Input 
+                                          id="edit-cover-image" 
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleEditCoverImageChange}
+                                        />
+                                        {(editCoverImagePreview || editingEBook.coverImage) && (
+                                          <div className="mt-2 relative aspect-[3/4] w-20 overflow-hidden rounded-md border border-gray-200">
+                                            <img 
+                                              src={editCoverImagePreview || editingEBook.coverImage} 
+                                              alt="Cover preview" 
+                                              className="object-cover w-full h-full"
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  
+                                  <div className="space-y-2">
+                                    <Label htmlFor="edit-description">Description</Label>
+                                    <Textarea 
+                                      id="edit-description" 
+                                      name="description"
+                                      placeholder="E-book description" 
+                                      value={editingEBook.description}
+                                      onChange={handleEditInputChange}
+                                      rows={3}
+                                    />
+                                  </div>
+                                  
+                                  <DialogFooter className="mt-4">
+                                    <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+                                      Cancel
+                                    </Button>
+                                    <Button type="submit" disabled={formSubmitting}>
+                                      {formSubmitting ? 'Saving...' : 'Save Changes'}
+                                    </Button>
+                                  </DialogFooter>
+                                </form>
+                              )}
+                            </DialogContent>
+                          </Dialog>
                           <Button 
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 px-3 rounded-md"
                             onClick={() => handleDeleteEBook(ebook._id)}

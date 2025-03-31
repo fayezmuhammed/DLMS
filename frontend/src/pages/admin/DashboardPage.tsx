@@ -11,6 +11,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { format } from 'date-fns';
 import { CalendarIcon } from 'lucide-react';
 import axios from 'axios';
+import { bookService, Book } from '@/services/bookService';
+import api from '@/utils/api';
+import { User, userService } from '../../services/userService';
+import { ebookService, EBook } from '@/services/ebookService';
 
 interface StatsData {
   totalBooks: number;
@@ -18,23 +22,6 @@ interface StatsData {
   totalUsers: number;
   activeTransactions: number;
   overdueTransactions: number;
-}
-
-interface Book {
-  id: number;
-  title: string;
-  author: string;
-  isbn: string;
-  category: string;
-  status: string;
-  copies: number;
-  addedOn: string;
-}
-
-interface User {
-  id: number;
-  name: string;
-  role: string;
 }
 
 const DashboardPage: React.FC = () => {
@@ -48,20 +35,36 @@ const DashboardPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [popularBooks, setPopularBooks] = useState<Book[]>([]);
+  const [popularEbooks, setPopularEbooks] = useState<EBook[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [books, setBooks] = useState<Book[]>([]);
+  const [ebooks, setEbooks] = useState<EBook[]>([]);
 
   // State for quick action modals
-  const [isAddBookDialogOpen, setIsAddBookDialogOpen] = useState(false);
-  const [isIssueBookDialogOpen, setIsIssueBookDialogOpen] = useState(false);
-  const [isReturnBookDialogOpen, setIsReturnBookDialogOpen] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showAddBookModal, setShowAddBookModal] = useState(false);
+  const [showIssueBookModal, setShowIssueBookModal] = useState(false);
 
-  // State for new book
-  const [newBook, setNewBook] = useState<Omit<Book, 'id' | 'addedOn'>>({
+  // New user form state
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    role: 'Student',
+    department: '',
+    password: ''
+  });
+
+  // New book form state
+  const [newBook, setNewBook] = useState<Omit<Book, '_id' | 'addedOn'>>({
     title: '',
     author: '',
-    isbn: '',
+    ISBN: '',
+    bookNo: '',
     category: '',
     status: 'Available',
     copies: 1,
+    coverImage: ''
   });
 
   // State for issue book
@@ -74,44 +77,72 @@ const DashboardPage: React.FC = () => {
   // State for return book
   const [returnBookId, setReturnBookId] = useState('');
 
-  // Mock books and users for dropdowns
-  const mockBooks = [
-    { id: 1, title: 'To Kill a Mockingbird' },
-    { id: 2, title: '1984' },
-    { id: 3, title: 'The Great Gatsby' },
-    { id: 4, title: 'Pride and Prejudice' },
-    { id: 5, title: 'The Hobbit' }
-  ];
-
-  const mockUsers = [
-    { id: 1, name: 'John Doe', role: 'Student' },
-    { id: 2, name: 'Jane Smith', role: 'Teacher' },
-    { id: 3, name: 'Robert Johnson', role: 'Student' },
-    { id: 4, name: 'Emily Davis', role: 'Student' },
-    { id: 5, name: 'Michael Wilson', role: 'Teacher' }
-  ];
-
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // In a real app, this would be fetched from the backend
-        // const response = await axios.get('http://localhost:5001/api/admin/dashboard', {
-        //   headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        // });
-        // setStats(response.data);
+        setLoading(true);
+        
+        // Fetch real statistics from the backend API
+        const response = await api.get('/admin/dashboard');
+        
+        if (response.data && response.data.success) {
+          setStats(response.data.data);
+          console.log('Dashboard stats:', response.data.data);
+        } else {
+          console.error('Invalid dashboard response:', response.data);
+          setError('Failed to load dashboard data: Invalid response format');
+        }
 
-        // For demo purposes, we'll use mock data
-        setStats({
-          totalBooks: 1254,
-          totalEbooks: 876,
-          totalUsers: 532,
-          activeTransactions: 124,
-          overdueTransactions: 18
-        });
+        // Fetch recent books data using the dedicated endpoint
+        try {
+          // First fetch the popular books for the horizontal scroll
+          const booksResponse = await bookService.getBooks();
+          if (booksResponse.success && booksResponse.data) {
+            // Take the first 8 books as popular books
+            setPopularBooks(booksResponse.data.slice(0, 8));
+          }
+          
+          // Now fetch recent books for the table
+          const recentBooksResponse = await api.get('/admin/recent-books');
+          if (recentBooksResponse.data && recentBooksResponse.data.success) {
+            setBooks(recentBooksResponse.data.data);
+          }
+        } catch (err) {
+          console.error('Error fetching books:', err);
+        }
+        
+        // Fetch e-books data
+        try {
+          // First fetch all e-books for the horizontal scroll
+          const ebooksResponse = await ebookService.getEBooks();
+          if (ebooksResponse.success && ebooksResponse.data) {
+            // Take the first 8 e-books as popular e-books
+            setPopularEbooks(ebooksResponse.data.slice(0, 8));
+          }
+          
+          // Fetch recent e-books for a potential table
+          const recentEbooksResponse = await api.get('/admin/recent-ebooks');
+          if (recentEbooksResponse.data && recentEbooksResponse.data.success) {
+            setEbooks(recentEbooksResponse.data.data);
+          }
+        } catch (err) {
+          console.error('Error fetching e-books:', err);
+        }
+
+        // Fetch recent users data using the dedicated endpoint
+        try {
+          const topUsersResponse = await api.get('/admin/top-users');
+          if (topUsersResponse.data && topUsersResponse.data.success) {
+            setUsers(topUsersResponse.data.data);
+          }
+        } catch (err) {
+          console.error('Error fetching users:', err);
+        }
 
         setLoading(false);
       } catch (err: any) {
-        setError('Failed to load dashboard data');
+        console.error('Error fetching dashboard data:', err);
+        setError(`Failed to load dashboard data: ${err.message || 'Unknown error'}`);
         setLoading(false);
       }
     };
@@ -119,20 +150,11 @@ const DashboardPage: React.FC = () => {
     fetchDashboardData();
   }, []);
 
-  // Recent activity mock data
-  const recentActivity = [
-    { id: 1, action: 'Book Borrowed', user: 'John Doe', book: 'To Kill a Mockingbird', time: '2 hours ago' },
-    { id: 2, action: 'Book Returned', user: 'Jane Smith', book: '1984', time: '5 hours ago' },
-    { id: 3, action: 'New User Registered', user: 'Mike Johnson', book: '', time: '1 day ago' },
-    { id: 4, action: 'E-Book Downloaded', user: 'Sarah Williams', book: 'The Great Gatsby', time: '1 day ago' },
-    { id: 5, action: 'Overdue Book Reminder Sent', user: 'Robert Brown', book: 'Pride and Prejudice', time: '2 days ago' },
-  ];
-
   // Handle issue book
   const handleIssueBook = () => {
     // In a real app, this would make an API call to issue the book
-    const selectedBook = mockBooks.find(book => book.id.toString() === issueBookData.bookId);
-    const selectedUser = mockUsers.find(user => user.id.toString() === issueBookData.userId);
+    const selectedBook = books.find(book => book._id.toString() === issueBookData.bookId);
+    const selectedUser = users.find(user => user._id.toString() === issueBookData.userId);
     
     if (!selectedBook || !selectedUser) {
       alert('Please select both a book and a user');
@@ -154,7 +176,7 @@ const DashboardPage: React.FC = () => {
       userId: '',
       dueDate: new Date(new Date().setDate(new Date().getDate() + 14))
     });
-    setIsIssueBookDialogOpen(false);
+    setShowIssueBookModal(false);
     
     // Update stats
     setStats(prev => ({
@@ -178,7 +200,7 @@ const DashboardPage: React.FC = () => {
     
     // Reset form and close dialog
     setReturnBookId('');
-    setIsReturnBookDialogOpen(false);
+    setShowIssueBookModal(false);
     
     // Update stats
     setStats(prev => ({
@@ -207,238 +229,211 @@ const DashboardPage: React.FC = () => {
       ) : (
         <>
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Books</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalBooks}</div>
-                <p className="text-xs text-muted-foreground mt-1">Physical copies in library</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card className="bg-white rounded-lg shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-4xl font-bold">{stats.totalBooks}</h2>
+                    <p className="text-gray-600">Total Books</p>
+                  </div>
+                  <div className="bg-red-100 p-3 rounded-full text-red-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total E-Books</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalEbooks}</div>
-                <p className="text-xs text-muted-foreground mt-1">Digital resources</p>
+            <Card className="bg-white rounded-lg shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-4xl font-bold">{stats.activeTransactions}</h2>
+                    <p className="text-gray-600">Borrowed Books</p>
+                  </div>
+                  <div className="bg-blue-100 p-3 rounded-full text-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Users</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.totalUsers}</div>
-                <p className="text-xs text-muted-foreground mt-1">Registered members</p>
+            <Card className="bg-white rounded-lg shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-4xl font-bold">{stats.overdueTransactions}</h2>
+                    <p className="text-gray-600">Overdue Books</p>
+                  </div>
+                  <div className="bg-pink-100 p-3 rounded-full text-pink-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M16 16v-3a2 2 0 0 0-4 0v3"/></svg>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Active Borrows</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.activeTransactions}</div>
-                <p className="text-xs text-muted-foreground mt-1">Books currently borrowed</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Overdue</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-500">{stats.overdueTransactions}</div>
-                <p className="text-xs text-muted-foreground mt-1">Books past due date</p>
+            <Card className="bg-white rounded-lg shadow">
+              <CardContent className="p-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <h2 className="text-4xl font-bold">{stats.totalUsers}</h2>
+                    <p className="text-gray-600">New Members</p>
+                  </div>
+                  <div className="bg-purple-100 p-3 rounded-full text-purple-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Recent Activity */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>The latest events in your library</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {recentActivity.map(activity => (
-                    <div key={activity.id} className="flex items-start border-b border-border pb-4 last:border-0 last:pb-0">
-                      <div className="w-2 h-2 rounded-full bg-primary mt-2 mr-3"></div>
-                      <div>
-                        <p className="font-medium">{activity.action}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {activity.user} {activity.book && `- "${activity.book}"`}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+          {/* Popular Books Section */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Popular Books</h2>
+              <Link to="/admin/books" className="text-blue-500 hover:underline">View All</Link>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 pb-4" style={{ minWidth: 'max-content' }}>
+                {popularBooks.length > 0 ? (
+                  popularBooks.map((book) => (
+                    <div key={book._id} className="w-40 shrink-0">
+                      <div className="mb-2 aspect-[2/3] overflow-hidden rounded-lg">
+                        <img 
+                          src={book.coverImage || book.imagePath || 'https://placehold.co/320x480?text=No+Cover'} 
+                          alt={book.title} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://placehold.co/320x480?text=No+Cover';
+                          }}
+                        />
                       </div>
+                      <h3 className="font-medium text-sm line-clamp-1">{book.title}</h3>
+                      <p className="text-xs text-gray-600 line-clamp-1">{book.author}</p>
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Actions */}
-            <Card className="col-span-1">
-              <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
-                <CardDescription>Common tasks and operations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Add New Book Button */}
-                  <Button 
-                    variant="outline"
-                    className="border rounded-md p-4 bg-gray-50 hover:bg-indigo-800 transition-colors text-center h-auto flex flex-col items-center justify-center"
-                    onClick={() => navigate('/admin/add-book')}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    <span className="text-sm font-medium">Add New Book</span>
-                  </Button>
-
-                  {/* Issue Book Dialog */}
-                  <Dialog open={isIssueBookDialogOpen} onOpenChange={setIsIssueBookDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline"
-                        className="border rounded-md p-4 bg-gray-50 hover:bg-indigo-800 transition-colors text-center h-auto flex flex-col items-center justify-center"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
-                        </svg>
-                        <span className="text-sm font-medium">Issue Book</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Issue Book</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="book" className="text-right">Book</Label>
-                          <Select 
-                            value={issueBookData.bookId} 
-                            onValueChange={(value) => setIssueBookData({...issueBookData, bookId: value})}
-                          >
-                            <SelectTrigger className="col-span-3">
-                              <SelectValue placeholder="Select book" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {mockBooks.map(book => (
-                                <SelectItem key={book.id} value={book.id.toString()}>
-                                  {book.title}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="user" className="text-right">User</Label>
-                          <Select 
-                            value={issueBookData.userId} 
-                            onValueChange={(value) => setIssueBookData({...issueBookData, userId: value})}
-                          >
-                            <SelectTrigger className="col-span-3">
-                              <SelectValue placeholder="Select user" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {mockUsers.map(user => (
-                                <SelectItem key={user.id} value={user.id.toString()}>
-                                  {user.name} ({user.role})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="dueDate" className="text-right">Due Date</Label>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <Button
-                                id="dueDate"
-                                variant="outline"
-                                className="col-span-3 justify-start text-left font-normal"
-                              >
-                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                {issueBookData.dueDate ? format(issueBookData.dueDate, 'PPP') : <span>Pick a date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0">
-                              <Calendar
-                                mode="single"
-                                selected={issueBookData.dueDate}
-                                onSelect={(date) => date && setIssueBookData({...issueBookData, dueDate: date})}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500 py-4">No books available</div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Popular E-Books Section */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold">Popular E-Books</h2>
+              <Link to="/admin/ebooks" className="text-blue-500 hover:underline">View All</Link>
+            </div>
+            <div className="overflow-x-auto">
+              <div className="flex gap-6 pb-4" style={{ minWidth: 'max-content' }}>
+                {popularEbooks.length > 0 ? (
+                  popularEbooks.map((ebook) => (
+                    <div key={ebook._id} className="w-40 shrink-0">
+                      <div className="mb-2 aspect-[2/3] overflow-hidden rounded-lg">
+                        <img 
+                          src={ebook.coverImage || 'https://placehold.co/320x480?text=No+Cover'} 
+                          alt={ebook.title} 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://placehold.co/320x480?text=No+Cover';
+                          }}
+                        />
                       </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsIssueBookDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleIssueBook}>Issue Book</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                      <h3 className="font-medium text-sm line-clamp-1">{ebook.title}</h3>
+                      <p className="text-xs text-gray-600 line-clamp-1">{ebook.author}</p>
+                      <p className="text-xs text-blue-500 mt-1">{ebook.fileType.toUpperCase()}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-gray-500 py-4">No e-books available</div>
+                )}
+              </div>
+            </div>
+          </div>
 
-                  {/* Return Book Dialog */}
-                  <Dialog open={isReturnBookDialogOpen} onOpenChange={setIsReturnBookDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        variant="outline"
-                        className="border rounded-md p-4 bg-gray-50 hover:bg-indigo-800 transition-colors text-center h-auto flex flex-col items-center justify-center"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H8m0 0l3 3m-3-3l3-3m9 14V5a2 2 0 00-2-2H6a2 2 0 00-2 2v16l4-2 4 2 4-2 4 2z" />
-                        </svg>
-                        <span className="text-sm font-medium">Return Book</span>
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Return Book</DialogTitle>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid grid-cols-4 items-center gap-4">
-                          <Label htmlFor="transactionId" className="text-right">Transaction ID</Label>
-                          <Input 
-                            id="transactionId" 
-                            value={returnBookId} 
-                            onChange={(e) => setReturnBookId(e.target.value)}
-                            className="col-span-3" 
-                            placeholder="Enter transaction ID"
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsReturnBookDialogOpen(false)}>Cancel</Button>
-                        <Button onClick={handleReturnBook}>Return Book</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+          {/* Users List */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Users List</h2>
+              <Button onClick={() => navigate('/admin/users')} className="bg-gray-200 text-gray-800 hover:bg-gray-300">Add New User</Button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Admission No.</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">User Name</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Book Issued</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.length > 0 ? (
+                    users.map(user => (
+                      <tr key={user._id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 text-gray-700">{user.admissionNumber || 'N/A'}</td>
+                        <td className="py-3 px-4 text-gray-700">{user.name}</td>
+                        <td className="py-3 px-4 text-gray-700">{user.booksIssued || 0}</td>
+                        <td className="py-3 px-4">
+                          <div className="text-center">⋯</div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={4} className="py-4 text-center text-gray-500">No users available</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 text-right">
+              <Link to="/admin/users" className="text-blue-500 hover:underline">See All</Link>
+            </div>
+          </div>
 
-                  {/* View Reports Button */}
-                  <Button 
-                    variant="outline"
-                    className="border rounded-md p-4 bg-gray-50 hover:bg-indigo-800 transition-colors text-center h-auto flex flex-col items-center justify-center"
-                    onClick={() => navigate('/admin/reports')}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span className="text-sm font-medium">View Reports</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Books List */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Books List</h2>
+              <Button onClick={() => navigate('/admin/books/add')} className="bg-gray-200 text-gray-800 hover:bg-gray-300">Add New Book</Button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="min-w-full bg-white">
+                <thead className="bg-gray-50 border-b">
+                  <tr>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Book No.</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Title</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Author</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Available</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-600">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {books.length > 0 ? (
+                    books.map(book => (
+                      <tr key={book._id} className="border-b hover:bg-gray-50">
+                        <td className="py-3 px-4 text-gray-700">{book.bookNo}</td>
+                        <td className="py-3 px-4 text-gray-700">{book.title}</td>
+                        <td className="py-3 px-4 text-gray-700">{book.author}</td>
+                        <td className="py-3 px-4 text-gray-700">{book.status === 'Available' ? 'Yes' : 'No'}</td>
+                        <td className="py-3 px-4">
+                          <div className="text-center">⋯</div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="py-4 text-center text-gray-500">No books available</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 text-right">
+              <Link to="/admin/books" className="text-blue-500 hover:underline">See All</Link>
+            </div>
           </div>
         </>
       )}

@@ -4,11 +4,30 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Book, bookService } from '@/services/bookService';
 
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
 const HomePage: React.FC = () => {
   const [featuredBooks, setFeaturedBooks] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
+    // Check if user is logged in and get their role
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+      }
+    }
+
     // Fetch books from API
     const fetchBooks = async () => {
       try {
@@ -59,6 +78,15 @@ const HomePage: React.FC = () => {
             >
               <Link to="/books">Explore Collection</Link>
             </Button>
+            {user?.role?.toLowerCase() === 'admin' && (
+              <Button 
+                asChild
+                variant="outline"
+                className="border-2 border-indigo-950 text-indigo-950 hover:bg-indigo-950 hover:text-white px-8 py-6 text-lg rounded-full transition-all duration-300 hover:shadow-lg"
+              >
+                <Link to="/admin">Admin Dashboard</Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -103,7 +131,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Services Section  */}
-      <section className="py-24 px-4 bg-gray-50">
+      {/* <section className="py-24 px-4 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="text-center">
@@ -135,7 +163,7 @@ const HomePage: React.FC = () => {
             </div>
           </div>
         </div>
-      </section>
+      </section> */}
     </div>
   );
 };

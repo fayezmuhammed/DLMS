@@ -6,43 +6,27 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 import { useReactToPrint } from 'react-to-print';
 import { format } from 'date-fns';
-
-interface Student {
-  _id: string;
-  admnNo: string;
-  name: string;
-  batch: string;
-  email: string;
-  phoneNumber: string;
-}
-
-interface Due {
-  bookTitle: string;
-  dueDate: string;
-  fine: number;
-}
+import { studentService, Student, Due } from '@/services/studentService';
 
 const NoDuePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [student, setStudent] = useState<Student | null>(null);
   const [dues, setDues] = useState<Due[]>([]);
   const [loading, setLoading] = useState(false);
-  const [signature, setSignature] = useState('');
   const { toast } = useToast();
   const certificateRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
     content: () => certificateRef.current,
-    onBeforeGetContent: () => {
-      if (!signature.trim()) {
-        toast({
-          title: "Error",
-          description: "Please add a signature before printing",
-          variant: "destructive",
-        });
-        return false;
-      }
-      return true;
+    onBeforePrint: () => {
+      console.log("Print ref:", certificateRef.current);
+    },
+    onPrintError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to print: " + error,
+        variant: "destructive",
+      });
     }
   });
 
@@ -58,23 +42,23 @@ const NoDuePage = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/students/${searchQuery}`);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch student data');
+      // Get student information by admission number
+      const studentResponse = await studentService.getStudentByAdmissionNumber(searchQuery);
+      
+      if (!studentResponse.success || !studentResponse.data) {
+        throw new Error('Student not found');
       }
 
-      setStudent(data.student);
+      const foundStudent = studentResponse.data;
+      setStudent(foundStudent);
       
-      // Fetch dues for the student
-      const duesResponse = await fetch(`${import.meta.env.VITE_API_URL}/api/dues/${data.student._id}`);
-      const duesData = await duesResponse.json();
+      // Get dues for the student
+      const duesResponse = await studentService.getStudentDues(foundStudent._id);
       
-      if (duesData.dues && duesData.dues.length > 0) {
-        setDues(duesData.dues);
+      if (duesResponse.success) {
+        setDues(duesResponse.data || []);
       } else {
-        setDues([]);
+        throw new Error('Failed to fetch student dues');
       }
     } catch (error) {
       toast({
@@ -82,6 +66,8 @@ const NoDuePage = () => {
         description: error instanceof Error ? error.message : "Failed to fetch student data",
         variant: "destructive",
       });
+      setStudent(null);
+      setDues([]);
     } finally {
       setLoading(false);
     }
@@ -139,7 +125,7 @@ const NoDuePage = () => {
                 <div className="grid grid-cols-2 gap-4 mb-6">
                   <div>
                     <p className="text-sm text-gray-600">Admission Number</p>
-                    <p className="font-medium">{student.admnNo}</p>
+                    <p className="font-medium">{student.admissionNumber}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Name</p>
@@ -156,43 +142,32 @@ const NoDuePage = () => {
                 </div>
 
                 <div className="mt-6">
-                  <label className="block text-sm font-medium mb-2">Signature</label>
-                  <Input
-                    placeholder="Enter your signature"
-                    value={signature}
-                    onChange={(e) => setSignature(e.target.value)}
-                    className="max-w-md"
-                  />
-                </div>
-
-                <div className="mt-6">
                   <Button onClick={handlePrint}>Print No Due Certificate</Button>
                 </div>
 
-                <div className="hidden">
-                  <div ref={certificateRef} className="p-8">
-                    <div className="text-center mb-8">
-                      <h2 className="text-2xl font-bold">No Due Certificate</h2>
-                      <p className="text-lg">Library Department</p>
-                    </div>
-                    
-                    <div className="mb-8">
-                      <p>This is to certify that</p>
-                      <p className="font-bold text-xl my-2">{student.name}</p>
-                      <p>Admission Number: {student.admnNo}</p>
-                      <p>Batch: {student.batch}</p>
-                      <p>has no outstanding dues in the library.</p>
-                    </div>
+                {/* Certificate to print */}
+                <div ref={certificateRef} className="mt-8 border p-8 print:border-0" style={{ display: 'block', visibility: 'visible' }}>
+                  <div className="text-center mb-8">
+                    <h2 className="text-2xl font-bold">No Due Certificate</h2>
+                    <p className="text-lg">Library Department</p>
+                  </div>
+                  
+                  <div className="mb-8">
+                    <p>This is to certify that</p>
+                    <p className="font-bold text-xl my-2">{student.name}</p>
+                    <p>Admission Number: {student.admissionNumber}</p>
+                    <p>Batch: {student.batch}</p>
+                    <p>has no outstanding dues in the library.</p>
+                  </div>
 
-                    <div className="mt-16">
-                      <div className="flex justify-between">
-                        <div>
-                          <p className="font-bold">{signature}</p>
-                          <p>Librarian</p>
-                        </div>
-                        <div>
-                          <p>Date: {format(new Date(), 'PPP')}</p>
-                        </div>
+                  <div className="mt-16">
+                    <div className="flex justify-between">
+                      <div>
+                        <p className="font-bold">Head Librarian</p>
+                        <p>Library Department</p>
+                      </div>
+                      <div>
+                        <p>Date: {format(new Date(), 'PPP')}</p>
                       </div>
                     </div>
                   </div>

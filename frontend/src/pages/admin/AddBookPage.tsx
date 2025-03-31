@@ -17,6 +17,7 @@ interface Book {
   title: string;
   author: string;
   isbn: string;
+  bookNo: string;
   category: string;
   status: 'Available' | 'Reserved' | 'Issued' | 'Lost';
   copies: number;
@@ -31,10 +32,11 @@ export default function AddBookPage() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [newBook, setNewBook] = useState<Omit<Book, 'id' | 'addedOn'>>({
+  const [newBook, setNewBook] = useState<Book>({
     title: '',
     author: '',
     isbn: '',
+    bookNo: '',
     category: '',
     status: 'Available',
     copies: 1,
@@ -129,6 +131,7 @@ export default function AddBookPage() {
       formData.append('title', newBook.title.trim());
       formData.append('author', newBook.author.trim());
       formData.append('isbn', newBook.isbn.trim());
+      formData.append('bookNo', newBook.bookNo.trim());
       formData.append('category', newBook.category);
       formData.append('status', newBook.status);
       formData.append('copies', String(newBook.copies));
@@ -199,6 +202,20 @@ export default function AddBookPage() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Required Fields</h2>
             
+            <div className="space-y-2">
+              <Label htmlFor="bookNo">
+                Book Number <span className="text-red-500">*</span>
+              </Label>
+              <Input 
+                id="bookNo" 
+                value={newBook.bookNo} 
+                onChange={(e) => setNewBook({...newBook, bookNo: e.target.value})}
+                placeholder="Enter unique book number"
+                required
+              />
+              <p className="text-xs text-gray-500">Book number must be unique for each book.</p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="title">
                 Title <span className="text-red-500">*</span>

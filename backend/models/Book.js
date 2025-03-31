@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const bookSchema = new mongoose.Schema({
+    bookNo: {
+        type: String,
+        required: [true, 'Please add a book number'],
+        unique: true,
+        trim: true
+    },
     title: {
         type: String,
         required: [true, 'Please add a title'],
@@ -63,8 +69,9 @@ const bookSchema = new mongoose.Schema({
     }
 });
 
-// Create index BEFORE model creation
+// Create indexes
 bookSchema.index({ isbn: 1 }, { unique: true, sparse: true });
+bookSchema.index({ bookNo: 1 }, { unique: true });
 
 const Book = mongoose.model('Book', bookSchema);
 

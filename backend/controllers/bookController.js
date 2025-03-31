@@ -45,6 +45,33 @@ exports.getBooks = async (req, res) => {
     }
 };
 
+// @desc    Get a single book
+// @route   GET /api/books/:id
+// @access  Public
+exports.getBookById = async (req, res) => {
+    try {
+        const book = await Book.findById(req.params.id).populate('category', 'name');
+        
+        if (!book) {
+            return res.status(404).json({
+                success: false,
+                message: 'Book not found'
+            });
+        }
+        
+        res.json({
+            success: true,
+            book
+        });
+    } catch (error) {
+        console.error('Error fetching book by ID:', error);
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 // @desc    Add a new book
 // @route   POST /api/books/add
 // @access  Private/Admin
@@ -69,7 +96,7 @@ exports.addBook = async (req, res) => {
                 delete req.body.ISBN;
             }
 
-            const requiredFields = ['title', 'author', 'isbn', 'category'];
+            const requiredFields = ['title', 'author', 'isbn', 'category', 'bookNo'];
             const missingFields = requiredFields.filter(field => !req.body[field]);
             
             if (missingFields.length > 0) {
@@ -79,7 +106,7 @@ exports.addBook = async (req, res) => {
                 });
             }
 
-            // Validate ISBN specifically
+            // Validate ISBN and bookNo
             if (!req.body.isbn || req.body.isbn.trim() === '') {
                 return res.status(400).json({
                     success: false,
@@ -87,18 +114,40 @@ exports.addBook = async (req, res) => {
                 });
             }
 
-            // Check if ISBN already exists
-            const existingBook = await Book.findOne({ isbn: req.body.isbn });
-            if (existingBook) {
+            if (!req.body.bookNo || req.body.bookNo.trim() === '') {
                 return res.status(400).json({
                     success: false,
-                    message: 'A book with this ISBN already exists'
+                    message: 'Book number cannot be empty'
                 });
+            }
+
+            // Check if ISBN or bookNo already exists
+            const existingBook = await Book.findOne({ 
+                $or: [
+                    { isbn: req.body.isbn },
+                    { bookNo: req.body.bookNo }
+                ]
+            });
+
+            if (existingBook) {
+                if (existingBook.isbn === req.body.isbn) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'A book with this ISBN already exists'
+                    });
+                }
+                if (existingBook.bookNo === req.body.bookNo) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'A book with this book number already exists'
+                    });
+                }
             }
 
             const bookData = {
                 ...req.body,
                 isbn: req.body.isbn.trim(),
+                bookNo: req.body.bookNo.trim(),
                 image: req.file ? `/uploads/books/${req.file.filename}` : undefined
             };
 

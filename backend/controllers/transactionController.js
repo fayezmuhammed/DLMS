@@ -164,6 +164,41 @@ exports.getAllTransactions = async (req, res) => {
     }
 };
 
+// @desc    Get all transactions for a specific book (admin only)
+// @route   GET /api/transactions/book/:bookId
+// @access  Private/Admin
+exports.getBookTransactions = async (req, res) => {
+    try {
+        const bookId = req.params.bookId;
+        
+        const transactions = await Transaction.find({ book: bookId })
+            .populate('book', 'title author ISBN imagePath')
+            .populate('user', 'name email')
+            .sort('-createdAt');
+            
+        // Update overdue status
+        const today = new Date();
+        for (let transaction of transactions) {
+            if (transaction.status === 'borrowed' && new Date(transaction.dueDate) < today) {
+                transaction.status = 'overdue';
+                await transaction.save();
+            }
+        }
+
+        res.json({
+            success: true,
+            count: transactions.length,
+            data: transactions
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
+    }
+};
+
 // @desc    Get active transactions (admin only)
 // @route   GET /api/transactions/active
 // @access  Private/Admin
@@ -234,6 +269,59 @@ exports.getOverdueTransactions = async (req, res) => {
         res.status(500).json({
             success: false,
             message: 'Server Error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get student dues
+// @route   GET /api/transactions/student-dues/:userId
+// @access  Private/Admin
+exports.getStudentDues = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        
+        // Find active or overdue transactions for this user
+        const transactions = await Transaction.find({
+            user: userId,
+            status: { $in: ['borrowed', 'overdue'] }
+        }).populate('book', 'title author ISBN');
+        
+        // Check for overdue transactions and calculate fines
+        const today = new Date();
+        const dues = [];
+        
+        for (let transaction of transactions) {
+            const dueDate = new Date(transaction.dueDate);
+            
+            // Update status to overdue if past due date
+            if (transaction.status === 'borrowed' && dueDate < today) {
+                transaction.status = 'overdue';
+                await transaction.save();
+            }
+            
+            // Calculate fine if overdue (₹10 per day)
+            if (dueDate < today) {
+                const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                const fine = daysOverdue * 10; // ₹10 per day
+                
+                dues.push({
+                    bookTitle: transaction.book.title,
+                    dueDate: transaction.dueDate,
+                    fine: fine
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            count: dues.length,
+            data: dues
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving student dues',
             error: error.message
         });
     }

@@ -1,5 +1,5 @@
 import React, { useState, ChangeEvent, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,6 +47,8 @@ export default function ManageBooksPage() {
   const [editCoverImageFile, setEditCoverImageFile] = useState<File | null>(null);
   const [editCoverImagePreview, setEditCoverImagePreview] = useState<string>('');
 
+  const navigate = useNavigate();
+
   // Fetch books and categories on component mount
   useEffect(() => {
     fetchBooks();
@@ -84,9 +86,9 @@ export default function ManageBooksPage() {
 
   // Filter books based on search term
   const filteredBooks = books.filter((book: Book) =>
-    book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    book.ISBN.includes(searchTerm)
+    (book.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (book.author?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (book.ISBN || book.isbn || '').includes(searchTerm)
   );
 
   // Handle image upload
@@ -260,135 +262,156 @@ export default function ManageBooksPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Manage Books</h1>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="flex items-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Add New Book
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Book</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleAddBook}>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="title" className="text-right">Title</Label>
-                  <Input 
-                    id="title" 
-                    value={newBook.title} 
-                    onChange={(e) => setNewBook({...newBook, title: e.target.value})}
-                    className="col-span-3" 
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="author" className="text-right">Author</Label>
-                  <Input 
-                    id="author" 
-                    value={newBook.author} 
-                    onChange={(e) => setNewBook({...newBook, author: e.target.value})}
-                    className="col-span-3" 
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="ISBN" className="text-right">ISBN</Label>
-                  <Input 
-                    id="ISBN" 
-                    value={newBook.ISBN} 
-                    onChange={(e) => setNewBook({...newBook, ISBN: e.target.value})}
-                    className="col-span-3" 
-                    required
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="category" className="text-right">Category</Label>
-                  <Select 
-                    value={newBook.category.toString()} 
-                    onValueChange={(value) => setNewBook({...newBook, category: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category._id} value={category._id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="status" className="text-right">Status</Label>
-                  <Select 
-                    value={newBook.status} 
-                    onValueChange={(value: any) => setNewBook({...newBook, status: value})}
-                  >
-                    <SelectTrigger className="col-span-3">
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Available">Available</SelectItem>
-                      <SelectItem value="Reserved">Reserved</SelectItem>
-                      <SelectItem value="Issued">Issued</SelectItem>
-                      <SelectItem value="Lost">Lost</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="copies" className="text-right">Copies</Label>
-                  <Input 
-                    id="copies" 
-                    type="number"
-                    min="1"
-                    value={newBook.copies.toString()} 
-                    onChange={(e) => setNewBook({...newBook, copies: parseInt(e.target.value) || 1})}
-                    className="col-span-3" 
-                  />
-                </div>
-                <div className="grid grid-cols-4 items-start gap-4">
-                  <Label htmlFor="coverImage" className="text-right pt-2">Cover Image</Label>
-                  <div className="col-span-3 space-y-2">
+        <div className="flex gap-4">
+          <Button 
+            className="flex items-center"
+            onClick={() => navigate('/admin/books/add')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add New Book
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="flex items-center" variant="outline">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Quick Add
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Book</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleAddBook}>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="bookNo" className="text-right">Book No.</Label>
                     <Input 
-                      id="coverImage" 
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageChange}
+                      id="bookNo" 
+                      value={newBook.bookNo} 
+                      onChange={(e) => setNewBook({...newBook, bookNo: e.target.value})}
+                      className="col-span-3" 
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="title" className="text-right">Title</Label>
+                    <Input 
+                      id="title" 
+                      value={newBook.title} 
+                      onChange={(e) => setNewBook({...newBook, title: e.target.value})}
+                      className="col-span-3" 
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="author" className="text-right">Author</Label>
+                    <Input 
+                      id="author" 
+                      value={newBook.author} 
+                      onChange={(e) => setNewBook({...newBook, author: e.target.value})}
+                      className="col-span-3" 
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="ISBN" className="text-right">ISBN</Label>
+                    <Input 
+                      id="ISBN" 
+                      value={newBook.ISBN} 
+                      onChange={(e) => setNewBook({...newBook, ISBN: e.target.value})}
+                      className="col-span-3" 
+                      required
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="category" className="text-right">Category</Label>
+                    <Select 
+                      value={newBook.category.toString()} 
+                      onValueChange={(value) => setNewBook({...newBook, category: value})}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category._id} value={category._id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="status" className="text-right">Status</Label>
+                    <Select 
+                      value={newBook.status} 
+                      onValueChange={(value: any) => setNewBook({...newBook, status: value})}
+                    >
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Available">Available</SelectItem>
+                        <SelectItem value="Reserved">Reserved</SelectItem>
+                        <SelectItem value="Issued">Issued</SelectItem>
+                        <SelectItem value="Lost">Lost</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="copies" className="text-right">Copies</Label>
+                    <Input 
+                      id="copies" 
+                      type="number"
+                      min="1"
+                      value={newBook.copies.toString()} 
+                      onChange={(e) => setNewBook({...newBook, copies: parseInt(e.target.value) || 1})}
                       className="col-span-3" 
                     />
-                    {coverImagePreview && (
-                      <div className="mt-2">
-                        <div className="text-sm text-gray-500 mb-1">Preview:</div>
-                        <div className="relative w-28 h-40 overflow-hidden rounded-md border border-gray-200">
-                          <img 
-                            src={coverImagePreview} 
-                            alt="Cover preview" 
-                            className="object-cover w-full h-full"
-                          />
+                  </div>
+                  <div className="grid grid-cols-4 items-start gap-4">
+                    <Label htmlFor="coverImage" className="text-right pt-2">Cover Image</Label>
+                    <div className="col-span-3 space-y-2">
+                      <Input 
+                        id="coverImage" 
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="col-span-3" 
+                      />
+                      {coverImagePreview && (
+                        <div className="mt-2">
+                          <div className="text-sm text-gray-500 mb-1">Preview:</div>
+                          <div className="relative w-28 h-40 overflow-hidden rounded-md border border-gray-200">
+                            <img 
+                              src={coverImagePreview} 
+                              alt="Cover preview" 
+                              className="object-cover w-full h-full"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => setIsAddDialogOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit">Add Book</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <DialogFooter>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setIsAddDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit">Add Book</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="flex justify-between items-center">
@@ -407,6 +430,7 @@ export default function ManageBooksPage() {
             <table className="w-full">
               <thead className="bg-muted/50 border-b">
                 <tr>
+                  <th className="py-3 px-4 text-left">Book No.</th>
                   <th className="py-3 px-4 text-left">Title</th>
                   <th className="py-3 px-4 text-left">Author</th>
                   <th className="py-3 px-4 text-left">ISBN</th>
@@ -421,6 +445,7 @@ export default function ManageBooksPage() {
                 {filteredBooks.length > 0 ? (
                   filteredBooks.map((book: Book) => (
                     <tr key={book._id} className="border-b hover:bg-muted/50">
+                      <td className="py-3 px-4">{book.bookNo}</td>
                       <td className="py-3 px-4">{book.title}</td>
                       <td className="py-3 px-4">{book.author}</td>
                       <td className="py-3 px-4">{book.ISBN || book.isbn}</td>
@@ -438,6 +463,12 @@ export default function ManageBooksPage() {
                       <td className="py-3 px-4">{book.addedOn}</td>
                       <td className="py-3 px-4">
                         <div className="flex justify-center space-x-2">
+                          <Button 
+                            className="bg-primary h-9 px-3 rounded-md"
+                            onClick={() => navigate(`/admin/books/${book._id}`)}
+                          >
+                            View
+                          </Button>
                           <Dialog open={isEditDialogOpen && editingBook?._id === book._id} onOpenChange={(open: boolean) => {
                             setIsEditDialogOpen(open);
                             if (!open) {
@@ -449,9 +480,35 @@ export default function ManageBooksPage() {
                             <DialogTrigger asChild>
                               <Button 
                                 className="bg-secondary h-9 px-3 rounded-md"
-                                onClick={() => {
-                                  setEditingBook(book);
-                                  setEditCoverImagePreview(book.coverImage || '');
+                                onClick={async () => {
+                                  try {
+                                    // Fetch complete book details
+                                    const response = await bookService.getBookById(book._id);
+                                    if (response && response.book) {
+                                      // Ensure ISBN is properly set
+                                      const bookData = {
+                                        ...response.book,
+                                        ISBN: response.book.ISBN || response.book.isbn || '',
+                                        // Ensure category is properly set
+                                        category: response.book.category || ''
+                                      };
+                                      setEditingBook(bookData);
+                                      setEditCoverImagePreview(bookData.coverImage || bookData.imagePath || '');
+                                    } else {
+                                      toast({
+                                        title: "Error",
+                                        description: "Failed to fetch book details",
+                                        variant: "destructive",
+                                      });
+                                    }
+                                  } catch (error) {
+                                    console.error('Error fetching book details:', error);
+                                    toast({
+                                      title: "Error",
+                                      description: "Failed to fetch book details",
+                                      variant: "destructive",
+                                    });
+                                  }
                                 }}
                               >
                                 Edit
@@ -464,11 +521,20 @@ export default function ManageBooksPage() {
                               {editingBook && (
                                 <div className="grid gap-4 py-4">
                                   <div className="grid grid-cols-4 items-center gap-4">
+                                    <Label htmlFor="edit-bookNo" className="text-right">Book No.</Label>
+                                    <Input 
+                                      id="edit-bookNo" 
+                                      value={editingBook.bookNo || ''} 
+                                      onChange={(e) => setEditingBook({...editingBook, bookNo: e.target.value})}
+                                      className="col-span-3" 
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-4 items-center gap-4">
                                     <Label htmlFor="edit-title" className="text-right">Title</Label>
                                     <Input 
                                       id="edit-title" 
-                                      value={editingBook.title} 
-                                      onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingBook({...editingBook, title: e.target.value})}
+                                      value={editingBook.title || ''} 
+                                      onChange={(e) => setEditingBook({...editingBook, title: e.target.value})}
                                       className="col-span-3" 
                                     />
                                   </div>
@@ -476,8 +542,8 @@ export default function ManageBooksPage() {
                                     <Label htmlFor="edit-author" className="text-right">Author</Label>
                                     <Input 
                                       id="edit-author" 
-                                      value={editingBook.author} 
-                                      onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingBook({...editingBook, author: e.target.value})}
+                                      value={editingBook.author || ''} 
+                                      onChange={(e) => setEditingBook({...editingBook, author: e.target.value})}
                                       className="col-span-3" 
                                     />
                                   </div>
@@ -485,20 +551,25 @@ export default function ManageBooksPage() {
                                     <Label htmlFor="edit-ISBN" className="text-right">ISBN</Label>
                                     <Input 
                                       id="edit-ISBN" 
-                                      value={editingBook.ISBN} 
-                                      onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingBook({...editingBook, ISBN: e.target.value})}
+                                      value={editingBook.ISBN || editingBook.isbn || ''} 
+                                      onChange={(e) => setEditingBook({...editingBook, ISBN: e.target.value})}
                                       className="col-span-3" 
                                     />
                                   </div>
                                   <div className="grid grid-cols-4 items-center gap-4">
                                     <Label htmlFor="edit-category" className="text-right">Category</Label>
                                     <Select 
-                                      value={editingBook.category 
-                                        ? (typeof editingBook.category === 'object' 
-                                          ? editingBook.category._id 
-                                          : editingBook.category.toString())
-                                        : ''}
-                                      onValueChange={(value) => setEditingBook({...editingBook, category: value})}
+                                      value={
+                                        editingBook.category
+                                          ? (typeof editingBook.category === 'object'
+                                            ? editingBook.category._id
+                                            : editingBook.category)
+                                          : ''
+                                      }
+                                      onValueChange={(value) => setEditingBook({
+                                        ...editingBook,
+                                        category: value
+                                      })}
                                     >
                                       <SelectTrigger className="col-span-3">
                                         <SelectValue placeholder="Select category" />

@@ -8,6 +8,7 @@ export interface Category {
 
 export interface Book {
   _id: string;
+  bookNo: string;
   title: string;
   author: string;
   ISBN: string;
@@ -27,6 +28,11 @@ export interface Book {
 export const bookService = {
   async getBooks() {
     const response = await api.get('/books');
+    return response.data;
+  },
+
+  async getBookById(id: string) {
+    const response = await api.get(`/books/${id}`);
     return response.data;
   },
 

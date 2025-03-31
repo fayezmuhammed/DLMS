@@ -10,7 +10,7 @@ async function deleteAdminUser() {
         console.log('Connected to MongoDB');
 
         // Delete admin user
-        const result = await User.deleteOne({ email: 'admin@gmail.com' });
+        const result = await User.deleteOne({ email: 'fayezmuhammed24@gmail.com' });
         if (result.deletedCount > 0) {
             console.log('Admin user deleted successfully');
         } else {

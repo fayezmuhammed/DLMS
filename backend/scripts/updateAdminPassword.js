@@ -9,7 +9,7 @@ const updateAdminPassword = async () => {
 
         const adminUser = await User.findOne({ role: 'admin' });
         if (adminUser) {
-            adminUser.password = 'admin123';
+            adminUser.password = 'fayez123';
             await adminUser.save();
             console.log('Admin password updated successfully');
         } else {

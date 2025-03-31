@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -26,6 +27,22 @@ const userSchema = new mongoose.Schema({
         enum: ['student', 'teacher', 'admin'],
         default: 'student'
     },
+    admissionNumber: {
+        type: String
+    },
+    batch: {
+        type: String
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
+    },
+    verificationCode: {
+        type: String
+    },
+    verificationCodeExpires: {
+        type: Date
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -44,6 +61,23 @@ userSchema.pre('save', async function(next) {
 // Match user entered password to hashed password in database
 userSchema.methods.matchPassword = async function(enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Generate verification code
+userSchema.methods.generateVerificationCode = function() {
+    // Generate a random 6-digit code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Hash the code
+    this.verificationCode = crypto
+        .createHash('sha256')
+        .update(verificationCode)
+        .digest('hex');
+    
+    // Set expiration (15 minutes)
+    this.verificationCodeExpires = Date.now() + 15 * 60 * 1000;
+    
+    return verificationCode;
 };
 
 module.exports = mongoose.model('User', userSchema); 

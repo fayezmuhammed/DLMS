@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { Book, bookService } from '@/services/bookService';
 import { transactionService } from '@/services/transactionService';
-import api from '@/utils/api';
 
 // Interface for User type
 interface User {
@@ -42,19 +41,19 @@ const BookDetailPage: React.FC = () => {
         if (!id) return;
         
         // Use bookService to fetch book details
-        const response = await api.get(`/books/${id}`);
-        if (response.data && response.data.book) {
-          setBook(response.data.book);
+        const response = await bookService.getBookById(id);
+        if (response && response.book) {
+          setBook(response.book);
           
           // Fetch related books
           const booksResponse = await bookService.getBooks();
-          const allBooks = booksResponse.data || [];
+          const allBooks = booksResponse.books || [];
           
           // Filter related books by category
-          if (response.data.book && response.data.book.category) {
-            const categoryId = typeof response.data.book.category === 'object' 
-              ? response.data.book.category._id 
-              : response.data.book.category;
+          if (response.book.category) {
+            const categoryId = typeof response.book.category === 'object' 
+              ? response.book.category._id 
+              : response.book.category;
               
             const related = allBooks
               .filter((b: Book) => {
@@ -64,7 +63,7 @@ const BookDetailPage: React.FC = () => {
                   ? b.category._id 
                   : b.category;
                   
-                return b._id !== response.data.book._id && 
+                return b._id !== response.book._id && 
                        bookCategoryId === categoryId;
               })
               .slice(0, 3);
@@ -113,8 +112,10 @@ const BookDetailPage: React.FC = () => {
         });
         // Refresh book data to update status
         if (id) {
-          const updatedBookResponse = await api.get(`/books/${id}`);
-          setBook(updatedBookResponse.data.book);
+          const updatedBookResponse = await bookService.getBookById(id);
+          if (updatedBookResponse && updatedBookResponse.book) {
+            setBook(updatedBookResponse.book);
+          }
         }
         
         // Redirect to transactions page
@@ -248,68 +249,91 @@ const BookDetailPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="prose max-w-none">
-            <h3 className="text-xl font-semibold mb-2">Description</h3>
-            <p>{book.description || 'No description available.'}</p>
+          {/* Book Information */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-sm text-muted-foreground">ISBN</p>
+              <p className="font-medium">{book.ISBN}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Publisher</p>
+              <p className="font-medium">{book.publisher || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Edition</p>
+              <p className="font-medium">{book.edition || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Category</p>
+              <p className="font-medium">
+                {typeof book.category === 'object' ? book.category.name : 'N/A'}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Shelf</p>
+              <p className="font-medium">{book.shelf || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Copies</p>
+              <p className="font-medium">{book.copies}</p>
+            </div>
           </div>
 
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-xl font-semibold mb-4">Book Details</h3>
-              <div className="mt-6 space-y-3">
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="font-medium">Category:</div>
-                  <div>
-                    {typeof book.category === 'object' && book.category?.name ? book.category.name : 'Unknown'}
-                  </div>
-                  <div className="font-medium">ISBN:</div>
-                  <div>{book.ISBN}</div>
-                  <div className="font-medium">Status:</div>
-                  <div>{book.status}</div>
-                  <div className="font-medium">Copies Available:</div>
-                  <div>{book.copies}</div>
-                  {book.publisher && (
-                    <>
-                      <div className="font-medium">Publisher:</div>
-                      <div>{book.publisher}</div>
-                    </>
-                  )}
-                  {book.edition && (
-                    <>
-                      <div className="font-medium">Edition:</div>
-                      <div>{book.edition}</div>
-                    </>
-                  )}
-                  {/* Use optional chaining for properties that might not exist */}
-                  {book.shelf && (
-                    <>
-                      <div className="font-medium">Shelf Location:</div>
-                      <div>{book.shelf}</div>
-                    </>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Description */}
+          <div>
+            <h2 className="text-xl font-semibold mb-2">Description</h2>
+            <p className="text-muted-foreground">
+              {book.description || 'No description available.'}
+            </p>
+          </div>
 
+          {/* Tags */}
+          {book.tags && (
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Tags</h2>
+              <div className="flex flex-wrap gap-2">
+                {book.tags.split(',').map((tag, index) => (
+                  <span
+                    key={index}
+                    className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-sm"
+                  >
+                    {tag.trim()}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Related Books */}
           {relatedBooks.length > 0 && (
             <div>
-              <h3 className="text-xl font-semibold mb-4">Related Books</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {relatedBooks.map(relatedBook => (
+              <h2 className="text-xl font-semibold mb-4">Related Books</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {relatedBooks.map((relatedBook) => (
                   <Card key={relatedBook._id} className="overflow-hidden">
                     <div className="aspect-[3/4] relative">
-                      <img 
-                        src={relatedBook.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
-                        alt={relatedBook.title} 
+                      <img
+                        src={relatedBook.imagePath || 'https://placehold.co/400x600?text=No+Cover'}
+                        alt={relatedBook.title}
                         className="object-cover w-full h-full"
                       />
+                      <div className="absolute top-2 right-2">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          relatedBook.status === 'Available'
+                            ? 'bg-green-100 text-green-800'
+                            : relatedBook.status === 'Reserved'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                        }`}>
+                          {relatedBook.status}
+                        </span>
+                      </div>
                     </div>
                     <CardContent className="p-4">
-                      <h4 className="font-medium line-clamp-1">{relatedBook.title}</h4>
+                      <h3 className="font-semibold line-clamp-1 mb-1">{relatedBook.title}</h3>
                       <p className="text-sm text-muted-foreground">by {relatedBook.author}</p>
-                      <Button variant="ghost" size="sm" className="mt-2 w-full" asChild>
-                        <Link to={`/books/${relatedBook._id}`}>View</Link>
+                      <Button variant="outline" className="w-full mt-4" asChild>
+                        <Link to={`/books/${relatedBook._id}`}>View Details</Link>
                       </Button>
                     </CardContent>
                   </Card>

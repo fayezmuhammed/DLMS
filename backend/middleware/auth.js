@@ -32,6 +32,17 @@ exports.protect = async (req, res, next) => {
     }
 };
 
+// Check if user is verified
+exports.isVerified = async (req, res, next) => {
+    if (!req.user.isVerified) {
+        return res.status(403).json({
+            success: false,
+            message: 'Email verification required. Please verify your email to access this route'
+        });
+    }
+    next();
+};
+
 // Optional authentication - user will be added to req if token exists
 exports.optionalAuth = async (req, res, next) => {
     let token;

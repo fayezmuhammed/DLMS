@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster"
 // Use lazy loading for components
 const LoginPage = lazy(() => import('@/pages/LoginPage'));
 const RegisterPage = lazy(() => import('@/pages/RegisterPage')); 
+const VerifyOtpPage = lazy(() => import('@/pages/VerifyOtpPage')); 
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const BooksPage = lazy(() => import('@/pages/BooksPage'));
 const BookDetailPage = lazy(() => import('@/pages/BookDetailPage'));
@@ -27,6 +28,9 @@ const TransactionsPageAdmin = lazy(() => import('@/pages/admin/TransactionsPage'
 const ReportsPage = lazy(() => import('@/pages/admin/ReportsPage'));
 const NoDuePage = lazy(() => import('@/pages/admin/NoDuePage'));
 const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
+
+// Import the admin BookDetailPage with a different name to avoid conflicts
+const AdminBookDetailPage = lazy(() => import('@/pages/admin/BookDetailPage'));
 
 // Loading component
 const Loading = () => (
@@ -142,6 +146,16 @@ function App() {
               )
             }
           />
+          <Route 
+            path="/verify-otp" 
+            element={
+              isAuthenticated ? (
+                <Navigate to="/" replace />
+              ) : (
+                <VerifyOtpPage />
+              )
+            }
+          />
           
           {/* Admin Routes */}
           <Route 
@@ -156,7 +170,8 @@ function App() {
               )
             }
           >
-            <Route index element={<DashboardPage />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
             <Route path="books" element={<ManageBooksPage />} />
             <Route path="books/add" element={<AddBookPage />} />
             <Route path="users" element={<ManageUsersPage />} />
@@ -165,6 +180,7 @@ function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="no-due" element={<NoDuePage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="books/:id" element={<AdminBookDetailPage />} />
           </Route>
 
           {/* User Routes */}

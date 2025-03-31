@@ -14,6 +14,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
     confirmPassword: '',
     batchName: '',
     classNumber: '',
+    admissionNumber: '',
     role: 'student',
   });
   const [error, setError] = useState('');
@@ -41,16 +42,29 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
     setIsLoading(true);
 
     try {
-      // Make API call to backend for registration
-      const response = await api.post('/auth/register', {
+      // Prepare data based on role
+      const registerData = {
         name: formData.name,
         email: formData.email,
         password: formData.password,
-        role: formData.role
-      });
+        role: formData.role,
+        ...(formData.role === 'student' && {
+          admissionNumber: formData.admissionNumber,
+          batchName: formData.batchName,
+          classNumber: formData.classNumber
+        })
+      };
 
-      // Redirect to login page after successful registration
-      navigate('/login', { state: { message: 'Registration successful! Please login with your credentials.' } });
+      // Make API call to backend for registration
+      const response = await api.post('/auth/register', registerData);
+
+      // Redirect to verify OTP page after successful registration
+      navigate('/verify-otp', { 
+        state: { 
+          email: formData.email, 
+          message: 'Registration successful! Please verify your email with the OTP sent to your inbox.' 
+        } 
+      });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {
@@ -139,6 +153,21 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
 
               {formData.role === 'student' && (
                 <>
+                  <div>
+                    <label className="block text-md font-medium text-gray-700 mb-2">
+                      Admission Number
+                    </label>
+                    <input
+                      type="text"
+                      name="admissionNumber"
+                      value={formData.admissionNumber}
+                      onChange={handleChange}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 transition-shadow"
+                      placeholder="e.g., ADM2023001"
+                      required
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-md font-medium text-gray-700 mb-2">
                       Batch Name

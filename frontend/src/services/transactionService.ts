@@ -48,5 +48,10 @@ export const transactionService = {
   async getOverdueTransactions() {
     const response = await api.get('/transactions?status=overdue');
     return response.data;
+  },
+  
+  async getBookTransactions(bookId: string) {
+    const response = await api.get(`/transactions/book/${bookId}`);
+    return response.data;
   }
 }; 
