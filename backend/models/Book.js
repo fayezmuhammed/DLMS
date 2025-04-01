@@ -19,20 +19,20 @@ const bookSchema = new mongoose.Schema({
     },
     isbn: {
         type: String,
-        required: [true, 'Please add an ISBN'],
         trim: true,
         validate: {
             validator: function(v) {
-                // Basic ISBN validation
-                return v && v.length > 0;
+                // Skip validation if empty (since it's now optional)
+                if (!v || v.trim() === '') return true;
+                // Basic ISBN validation only if value is provided
+                return v.length > 0;
             },
             message: props => `${props.value} is not a valid ISBN!`
         }
     },
     category: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
-        required: [true, 'Please add a category']
+        ref: 'Category'
     },
     status: {
         type: String,
@@ -72,7 +72,7 @@ const bookSchema = new mongoose.Schema({
     }
 });
 
-// Create indexes
+// Create indexes - keep unique but make it sparse to allow nulls
 bookSchema.index({ isbn: 1 }, { unique: true, sparse: true });
 bookSchema.index({ bookNo: 1 }, { unique: true });
 

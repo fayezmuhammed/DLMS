@@ -11,7 +11,8 @@ export interface Book {
   bookNo: string;
   title: string;
   author: string;
-  ISBN: string;
+  ISBN?: string;
+  isbn?: string;
   category?: string | Category | null;
   status: 'Available' | 'Reserved' | 'Issued' | 'Lost';
   copies: number;
@@ -25,6 +26,16 @@ export interface Book {
   tags?: string;
   addedOn?: string;
   shelf?: string;
+}
+
+export interface ImportResult {
+  total: number;
+  successful: number;
+  failed: number;
+  errors: Array<{
+    book: any;
+    error: string;
+  }>;
 }
 
 export const bookService = {
@@ -78,6 +89,15 @@ export const bookService = {
 
   async deleteBook(id: string) {
     const response = await api.delete(`/books/delete/${id}`);
+    return response.data;
+  },
+
+  async bulkImportBooks(importData: FormData) {
+    const response = await api.post('/books/import', importData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   }
 };

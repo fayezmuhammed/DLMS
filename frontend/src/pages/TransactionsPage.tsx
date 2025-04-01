@@ -80,6 +80,15 @@ const TransactionsPage: React.FC = () => {
   };
 
   const handleReturnBook = async (bookId: string) => {
+    if (!bookId) {
+      toast({
+        title: "Error",
+        description: "Invalid book ID. Cannot return book.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const response = await transactionService.returnBook(bookId);
       
@@ -108,6 +117,15 @@ const TransactionsPage: React.FC = () => {
   };
 
   const handleBorrowAgain = async (bookId: string) => {
+    if (!bookId) {
+      toast({
+        title: "Error",
+        description: "Invalid book ID. Cannot borrow book.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     try {
       const response = await transactionService.borrowBook(bookId);
       
@@ -176,7 +194,7 @@ const TransactionsPage: React.FC = () => {
   const handlePayFine = (transactionId: string, amount: number) => {
     toast({
       title: "Payment Processing",
-      description: `Processing payment of $${amount.toFixed(2)} for overdue fees.`,
+      description: `Processing payment of ₹${amount.toFixed(2)} for overdue fees.`,
     });
     
     // In a real implementation, this would redirect to a payment gateway
@@ -192,11 +210,20 @@ const TransactionsPage: React.FC = () => {
 
   // Helper function to get book details from transaction
   const getBookDetails = (transaction: Transaction) => {
+    if (!transaction || !transaction.book) {
+      return {
+        title: 'Unknown Book',
+        author: 'Unknown Author',
+        coverImage: 'https://placehold.co/400x600?text=No+Cover',
+        id: 'unknown'
+      };
+    }
+    
     if (typeof transaction.book === 'object') {
       return {
-        title: transaction.book.title,
-        author: transaction.book.author,
-        coverImage: transaction.book.coverImage || transaction.book.imagePath,
+        title: transaction.book.title || 'Untitled Book',
+        author: transaction.book.author || 'Unknown Author',
+        coverImage: transaction.book.coverImage || transaction.book.imagePath || 'https://placehold.co/400x600?text=No+Cover',
         id: transaction.book._id
       };
     }
@@ -228,7 +255,7 @@ const TransactionsPage: React.FC = () => {
           </div>
           <div>
             <p className="text-gray-600">Late Fee</p>
-            <p className="font-medium">${borrowingRules.finePerDay} / day</p>
+            <p className="font-medium">₹{borrowingRules.finePerDay} / day</p>
           </div>
         </div>
       </div>
@@ -276,15 +303,15 @@ const TransactionsPage: React.FC = () => {
                     <div className="flex gap-6">
                       <div className="w-32 h-48 flex-shrink-0">
                         <img
-                          src={book.coverImage || 'https://placehold.co/400x600?text=No+Cover'}
-                          alt={book.title}
+                          src={book?.coverImage || 'https://placehold.co/400x600?text=No+Cover'}
+                          alt={book?.title || 'Book cover'}
                           className="w-full h-full object-cover rounded-md"
                         />
                       </div>
                       <div className="flex-grow space-y-4">
                         <div>
-                          <h3 className="text-xl font-semibold">{book.title}</h3>
-                          <p className="text-muted-foreground">by {book.author}</p>
+                          <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
+                          <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
@@ -308,7 +335,7 @@ const TransactionsPage: React.FC = () => {
                           {transaction.status === 'overdue' && (
                             <div className="text-sm text-red-600">
                               {calculateDaysOverdue(transaction.dueDate)} days overdue
-                              <span className="block font-medium">Fine: ${calculateFine(transaction.dueDate).toFixed(2)}</span>
+                              <span className="block font-medium">Fine: ₹{calculateFine(transaction.dueDate).toFixed(2)}</span>
                             </div>
                           )}
                           <div className="flex gap-2">
@@ -352,15 +379,15 @@ const TransactionsPage: React.FC = () => {
                     <div className="flex gap-6">
                       <div className="w-32 h-48 flex-shrink-0">
                         <img
-                          src={book.coverImage || 'https://placehold.co/400x600?text=No+Cover'}
-                          alt={book.title}
+                          src={book?.coverImage || 'https://placehold.co/400x600?text=No+Cover'}
+                          alt={book?.title || 'Book cover'}
                           className="w-full h-full object-cover rounded-md"
                         />
                       </div>
                       <div className="flex-grow space-y-4">
                         <div>
-                          <h3 className="text-xl font-semibold">{book.title}</h3>
-                          <p className="text-muted-foreground">by {book.author}</p>
+                          <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
+                          <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>

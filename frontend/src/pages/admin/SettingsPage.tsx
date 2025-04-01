@@ -316,7 +316,7 @@ const SettingsPage: React.FC = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="finePerDay">Fine Per Day ($)</Label>
+                  <Label htmlFor="finePerDay">Fine Per Day (₹)</Label>
                   <Input 
                     id="finePerDay" 
                     name="finePerDay"

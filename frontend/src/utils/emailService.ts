@@ -186,7 +186,7 @@ export const sendOverdueFineEmail = async (user: User, books: Book[]): Promise<b
       <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${book.title}</td>
       <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${book.author}</td>
       <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${new Date(book.dueDate || '').toLocaleDateString()}</td>
-      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">$${(book.fine || 0).toFixed(2)}</td>
+      <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; text-align: right;">₹${(book.fine || 0).toFixed(2)}</td>
     </tr>
   `).join('');
   
@@ -209,7 +209,7 @@ export const sendOverdueFineEmail = async (user: User, books: Book[]): Promise<b
           ${booksList}
           <tr style="background-color: #f3f4f6; font-weight: bold;">
             <td colspan="3" style="padding: 10px; text-align: right;">Total Fine:</td>
-            <td style="padding: 10px; text-align: right;">$${totalFine.toFixed(2)}</td>
+            <td style="padding: 10px; text-align: right;">₹${totalFine.toFixed(2)}</td>
           </tr>
         </tbody>
       </table>

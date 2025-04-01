@@ -102,17 +102,9 @@ export default function AddBookPage() {
       validationErrors.push('Please add an author');
     }
     
-    // Enhanced ISBN validation
-    if (!newBook.isbn?.trim()) {
-      validationErrors.push('Please add an ISBN');
-    } else if (newBook.isbn.trim().length < 10) {
-      // Basic ISBN length check (most ISBNs are at least 10 digits)
-      validationErrors.push('ISBN seems too short - please enter a valid ISBN');
-    }
+    // Remove ISBN validation as it's now optional
     
-    if (!newBook.category) {
-      validationErrors.push('Please select a category');
-    }
+    // Remove category validation as it's now optional
 
     if (validationErrors.length > 0) {
       toast({
@@ -130,13 +122,13 @@ export default function AddBookPage() {
       // Add all book data to formData with proper type conversion
       formData.append('title', newBook.title.trim());
       formData.append('author', newBook.author.trim());
-      formData.append('isbn', newBook.isbn.trim());
       formData.append('bookNo', newBook.bookNo.trim());
-      formData.append('category', newBook.category);
       formData.append('status', newBook.status);
       formData.append('copies', String(newBook.copies));
       
       // Add optional fields if they have values
+      if (newBook.isbn?.trim()) formData.append('isbn', newBook.isbn.trim());
+      if (newBook.category?.trim()) formData.append('category', newBook.category);
       if (newBook.publisher?.trim()) formData.append('publisher', newBook.publisher.trim());
       if (newBook.edition?.trim()) formData.append('edition', newBook.edition.trim());
       if (newBook.description?.trim()) formData.append('description', newBook.description.trim());
@@ -241,31 +233,30 @@ export default function AddBookPage() {
                 required
               />
             </div>
+          </div>
+
+          {/* Optional Fields */}
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold">Optional Fields</h2>
 
             <div className="space-y-2">
-              <Label htmlFor="isbn">
-                ISBN <span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="isbn">ISBN</Label>
               <Input 
                 id="isbn" 
                 value={newBook.isbn} 
                 onChange={(e) => setNewBook({...newBook, isbn: e.target.value})}
-                placeholder="Enter unique ISBN number (e.g., 9781234567890)"
-                required
+                placeholder="Enter ISBN number (e.g., 9781234567890)"
               />
-              <p className="text-xs text-gray-500">ISBN must be unique for each book. Standard formats are ISBN-10 or ISBN-13.</p>
+              <p className="text-xs text-gray-500">Standard formats are ISBN-10 or ISBN-13.</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="category">
-                Category <span className="text-red-500">*</span>
-              </Label>
+              <Label htmlFor="category">Category</Label>
               <select
                 id="category"
                 className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
                 value={newBook.category}
                 onChange={(e) => setNewBook({...newBook, category: e.target.value})}
-                required
               >
                 <option value="">Select a category</option>
                 {categories.map((category) => (
@@ -275,11 +266,6 @@ export default function AddBookPage() {
                 ))}
               </select>
             </div>
-          </div>
-
-          {/* Optional Fields */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold">Optional Fields</h2>
 
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>

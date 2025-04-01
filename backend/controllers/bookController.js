@@ -2,6 +2,7 @@ const Book = require('../models/Book');
 const multer = require('multer');
 const path = require('path');
 const cloudinaryService = require('../services/cloudinaryService');
+const { upload: excelUpload, processExcelImport } = require('../scripts/importBooks');
 
 // Configure multer for memory storage (instead of disk)
 const storage = multer.memoryStorage();
@@ -93,7 +94,7 @@ exports.addBook = async (req, res) => {
                 delete req.body.ISBN;
             }
 
-            const requiredFields = ['title', 'author', 'isbn', 'category', 'bookNo'];
+            const requiredFields = ['title', 'author', 'bookNo'];
             const missingFields = requiredFields.filter(field => !req.body[field]);
             
             if (missingFields.length > 0) {
@@ -103,14 +104,7 @@ exports.addBook = async (req, res) => {
                 });
             }
 
-            // Validate ISBN and bookNo
-            if (!req.body.isbn || req.body.isbn.trim() === '') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'ISBN cannot be empty'
-                });
-            }
-
+            // Validate bookNo
             if (!req.body.bookNo || req.body.bookNo.trim() === '') {
                 return res.status(400).json({
                     success: false,
@@ -119,15 +113,20 @@ exports.addBook = async (req, res) => {
             }
 
             // Check if ISBN or bookNo already exists
-            const existingBook = await Book.findOne({ 
-                $or: [
-                    { isbn: req.body.isbn },
-                    { bookNo: req.body.bookNo }
-                ]
-            });
+            const existingBookQuery = { bookNo: req.body.bookNo };
+            
+            // Only check ISBN uniqueness if provided
+            if (req.body.isbn && req.body.isbn.trim() !== '') {
+                existingBookQuery.$or = [
+                    { bookNo: req.body.bookNo },
+                    { isbn: req.body.isbn }
+                ];
+            }
+            
+            const existingBook = await Book.findOne(existingBookQuery);
 
             if (existingBook) {
-                if (existingBook.isbn === req.body.isbn) {
+                if (req.body.isbn && existingBook.isbn === req.body.isbn) {
                     return res.status(400).json({
                         success: false,
                         message: 'A book with this ISBN already exists'
@@ -156,11 +155,15 @@ exports.addBook = async (req, res) => {
 
             const bookData = {
                 ...req.body,
-                isbn: req.body.isbn.trim(),
                 bookNo: req.body.bookNo.trim(),
                 image: imageUrl || undefined,
                 imagePublicId: imagePublicId || undefined
             };
+
+            // Add ISBN only if provided
+            if (req.body.isbn) {
+                bookData.isbn = req.body.isbn.trim();
+            }
 
             // Convert copies to number if it's a string
             if (typeof bookData.copies === 'string') {
@@ -284,6 +287,63 @@ exports.deleteBook = async (req, res) => {
         res.status(400).json({
             success: false,
             message: error.message
+        });
+    }
+};
+
+// @desc    Bulk import books from Excel file
+// @route   POST /api/books/import
+// @access  Private/Admin
+exports.bulkImportBooks = async (req, res) => {
+    try {
+        // Use middleware to handle file upload
+        excelUpload.single('excelFile')(req, res, async function(err) {
+            if (err) {
+                return res.status(400).json({
+                    success: false,
+                    message: err.message || 'Error uploading file'
+                });
+            }
+
+            if (!req.file) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Please upload an Excel file'
+                });
+            }
+
+            try {
+                // Get default category
+                const defaultCategoryId = req.body.category || null;
+                
+                if (!defaultCategoryId) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Default category is required'
+                    });
+                }
+
+                // Process the Excel file
+                const results = await processExcelImport(req.file.path, defaultCategoryId);
+                
+                return res.status(200).json({
+                    success: true,
+                    message: 'Import process completed',
+                    results
+                });
+            } catch (error) {
+                console.error('Error in bulk import:', error);
+                return res.status(500).json({
+                    success: false,
+                    message: error.message || 'Error processing file'
+                });
+            }
+        });
+    } catch (error) {
+        console.error('Error in bulk import:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Server error'
         });
     }
 }; 

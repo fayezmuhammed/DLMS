@@ -7,8 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/components/ui/use-toast";
-import { Book, bookService } from '@/services/bookService';
+import { Book, bookService, ImportResult } from '@/services/bookService';
 import { Category } from '@/services/bookService';
+import { Plus, Upload } from 'lucide-react';
 
 // Helper function to safely render any value
 const safeRender = (value: any): string => {
@@ -30,6 +31,7 @@ export default function ManageBooksPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [newBook, setNewBook] = useState<Omit<Book, '_id' | 'addedOn'>>({
+    bookNo: '',
     title: '',
     author: '',
     ISBN: '',
@@ -46,6 +48,13 @@ export default function ManageBooksPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editCoverImageFile, setEditCoverImageFile] = useState<File | null>(null);
   const [editCoverImagePreview, setEditCoverImagePreview] = useState<string>('');
+
+  // Add import dialog state
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importCategory, setImportCategory] = useState<string>('');
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
 
   const navigate = useNavigate();
 
@@ -81,6 +90,73 @@ export default function ManageBooksPage() {
         description: "Failed to fetch categories",
         variant: "destructive",
       });
+    }
+  };
+
+  // Handle import file change
+  const handleImportFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setImportFile(e.target.files[0]);
+    }
+  };
+
+  // Handle bulk import submission
+  const handleBulkImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!importFile) {
+      toast({
+        title: "Error",
+        description: "Please select an Excel file to import",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!importCategory) {
+      toast({
+        title: "Error",
+        description: "Please select a default category for imported books",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setImportLoading(true);
+      
+      const formData = new FormData();
+      formData.append('excelFile', importFile);
+      formData.append('category', importCategory);
+      
+      const response = await bookService.bulkImportBooks(formData);
+      
+      setImportResult(response.results);
+      
+      toast({
+        title: "Import Complete",
+        description: `Processed ${response.results.total} books: ${response.results.successful} imported, ${response.results.failed} failed`,
+        variant: response.results.failed > 0 ? "destructive" : "default",
+      });
+      
+      if (response.results.successful > 0) {
+        fetchBooks(); // Refresh books list
+      }
+      
+      if (response.results.failed === 0) {
+        setIsImportDialogOpen(false);
+        setImportFile(null);
+        setImportCategory('');
+        setImportResult(null);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to import books. Please check your Excel file format.",
+        variant: "destructive",
+      });
+    } finally {
+      setImportLoading(false);
     }
   };
 
@@ -135,10 +211,22 @@ export default function ManageBooksPage() {
       const formData = new FormData();
       
       // Add book data to formData
+      formData.append('bookNo', newBook.bookNo);
       formData.append('title', newBook.title);
       formData.append('author', newBook.author);
-      formData.append('ISBN', newBook.ISBN);
-      formData.append('category', newBook.category);
+      
+      // Add optional fields only if they have values
+      if (newBook.ISBN) {
+        formData.append('ISBN', newBook.ISBN);
+      }
+      
+      if (newBook.category) {
+        // Ensure category is a string value
+        const categoryValue = typeof newBook.category === 'object' && newBook.category !== null
+          ? newBook.category._id 
+          : String(newBook.category);
+        formData.append('category', categoryValue);
+      }
       
       if (coverImageFile) {
         formData.append('image', coverImageFile);
@@ -154,6 +242,7 @@ export default function ManageBooksPage() {
       fetchBooks(); // Refresh books list
       setIsAddDialogOpen(false);
       setNewBook({
+        bookNo: '',
         title: '',
         author: '',
         ISBN: '',
@@ -177,10 +266,10 @@ export default function ManageBooksPage() {
   const handleEditBook = async () => {
     if (editingBook) {
       // Validate required fields
-      if (!editingBook.title || !editingBook.author || !editingBook.ISBN) {
+      if (!editingBook.title || !editingBook.author) {
         toast({
           title: "Error",
-          description: "Please fill in all required fields (Title, Author, ISBN)",
+          description: "Please fill in all required fields (Title, Author)",
           variant: "destructive",
         });
         return;
@@ -193,15 +282,22 @@ export default function ManageBooksPage() {
         const formData = new FormData();
         formData.append('title', editingBook.title);
         formData.append('author', editingBook.author);
-        formData.append('ISBN', editingBook.ISBN);
         
-        // Handle category properly
-        const categoryValue = editingBook.category
-          ? (typeof editingBook.category === 'object' 
-             ? editingBook.category._id 
-             : editingBook.category)
-          : '';
-        formData.append('category', categoryValue);
+        // Add ISBN only if it has a value
+        if (editingBook.ISBN || editingBook.isbn) {
+          formData.append('ISBN', editingBook.ISBN || editingBook.isbn || '');
+        }
+        
+        // Handle category properly - only add if present
+        if (editingBook.category) {
+          const categoryValue = typeof editingBook.category === 'object' 
+            ? editingBook.category._id 
+            : editingBook.category;
+          
+          if (categoryValue) {
+            formData.append('category', categoryValue);
+          }
+        }
         
         formData.append('status', editingBook.status);
         formData.append('copies', editingBook.copies.toString());
@@ -259,173 +355,249 @@ export default function ManageBooksPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Manage Books</h1>
-        <div className="flex gap-4">
+    <div className="container mx-auto py-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Manage Books</h1>
+        <div className="space-x-2">
           <Button 
-            className="flex items-center"
             onClick={() => navigate('/admin/books/add')}
+            className="flex items-center space-x-1"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Add New Book
+            <Plus className="h-4 w-4" />
+            <span>Add New Book</span>
           </Button>
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="flex items-center" variant="outline">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Quick Add
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Add New Book</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAddBook}>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="bookNo" className="text-right">Book No.</Label>
-                    <Input 
-                      id="bookNo" 
-                      value={newBook.bookNo} 
-                      onChange={(e) => setNewBook({...newBook, bookNo: e.target.value})}
-                      className="col-span-3" 
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="title" className="text-right">Title</Label>
-                    <Input 
-                      id="title" 
-                      value={newBook.title} 
-                      onChange={(e) => setNewBook({...newBook, title: e.target.value})}
-                      className="col-span-3" 
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="author" className="text-right">Author</Label>
-                    <Input 
-                      id="author" 
-                      value={newBook.author} 
-                      onChange={(e) => setNewBook({...newBook, author: e.target.value})}
-                      className="col-span-3" 
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="ISBN" className="text-right">ISBN</Label>
-                    <Input 
-                      id="ISBN" 
-                      value={newBook.ISBN} 
-                      onChange={(e) => setNewBook({...newBook, ISBN: e.target.value})}
-                      className="col-span-3" 
-                      required
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="category" className="text-right">Category</Label>
-                    <Select 
-                      value={newBook.category.toString()} 
-                      onValueChange={(value) => setNewBook({...newBook, category: value})}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category._id} value={category._id}>
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="status" className="text-right">Status</Label>
-                    <Select 
-                      value={newBook.status} 
-                      onValueChange={(value: any) => setNewBook({...newBook, status: value})}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Available">Available</SelectItem>
-                        <SelectItem value="Reserved">Reserved</SelectItem>
-                        <SelectItem value="Issued">Issued</SelectItem>
-                        <SelectItem value="Lost">Lost</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="copies" className="text-right">Copies</Label>
-                    <Input 
-                      id="copies" 
-                      type="number"
-                      min="1"
-                      value={newBook.copies.toString()} 
-                      onChange={(e) => setNewBook({...newBook, copies: parseInt(e.target.value) || 1})}
-                      className="col-span-3" 
-                    />
-                  </div>
-                  <div className="grid grid-cols-4 items-start gap-4">
-                    <Label htmlFor="coverImage" className="text-right pt-2">Cover Image</Label>
-                    <div className="col-span-3 space-y-2">
-                      <Input 
-                        id="coverImage" 
-                        type="file"
-                        accept="image/*"
-                        onChange={handleImageChange}
-                        className="col-span-3" 
-                      />
-                      {coverImagePreview && (
-                        <div className="mt-2">
-                          <div className="text-sm text-gray-500 mb-1">Preview:</div>
-                          <div className="relative w-28 h-40 overflow-hidden rounded-md border border-gray-200">
-                            <img 
-                              src={coverImagePreview} 
-                              alt="Cover preview" 
-                              className="object-cover w-full h-full"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setIsAddDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit">Add Book</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
+          <Button 
+            onClick={() => setIsImportDialogOpen(true)}
+            variant="outline"
+            className="flex items-center space-x-1"
+          >
+            <Upload className="h-4 w-4" />
+            <span>Import Books</span>
+          </Button>
         </div>
       </div>
+      
+      {/* Import Books Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Import Books from Excel</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleBulkImport}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="excelFile" className="text-right pt-2">Excel File</Label>
+                <div className="col-span-3">
+                  <Input 
+                    id="excelFile" 
+                    type="file"
+                    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                    onChange={handleImportFileChange}
+                    className="col-span-3" 
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Excel file should include columns: Bookno, title, author, Price, ISBN, cover image link
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="importCategory" className="text-right">Default Category</Label>
+                <Select 
+                  value={importCategory} 
+                  onValueChange={setImportCategory}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category._id} value={category._id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {importResult && importResult.failed > 0 && (
+                <div className="col-span-4 mt-2">
+                  <p className="text-sm font-medium text-red-500">Import Errors:</p>
+                  <div className="max-h-40 overflow-y-auto mt-1 p-2 border rounded text-xs">
+                    {importResult.errors.map((error, idx) => (
+                      <div key={idx} className="mb-1 pb-1 border-b border-gray-100">
+                        <p><strong>Error:</strong> {error.error}</p>
+                        <p><strong>Book:</strong> {error.book.title || error.book.Title || JSON.stringify(error.book)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={() => setIsImportDialogOpen(false)}
+                disabled={importLoading}
+              >
+                Cancel
+              </Button>
+              <Button 
+                type="submit"
+                disabled={!importFile || !importCategory || importLoading}
+              >
+                {importLoading ? 'Importing...' : 'Import Books'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-      <div className="flex justify-between items-center">
-        <Input
-          type="search"
-          placeholder="Search by title, author, or ISBN..."
-          value={searchTerm}
-          onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
-          className="max-w-md"
-        />
-      </div>
+      {/* Add Book Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Book</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleAddBook}>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="bookNo" className="text-right">Book No.</Label>
+                <Input 
+                  id="bookNo" 
+                  value={newBook.bookNo} 
+                  onChange={(e) => setNewBook({...newBook, bookNo: e.target.value})}
+                  className="col-span-3" 
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="title" className="text-right">Title</Label>
+                <Input 
+                  id="title" 
+                  value={newBook.title} 
+                  onChange={(e) => setNewBook({...newBook, title: e.target.value})}
+                  className="col-span-3" 
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="author" className="text-right">Author</Label>
+                <Input 
+                  id="author" 
+                  value={newBook.author} 
+                  onChange={(e) => setNewBook({...newBook, author: e.target.value})}
+                  className="col-span-3" 
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="ISBN" className="text-right">ISBN (Optional)</Label>
+                <Input 
+                  id="ISBN" 
+                  value={newBook.ISBN} 
+                  onChange={(e) => setNewBook({...newBook, ISBN: e.target.value})}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="category" className="text-right">Category (Optional)</Label>
+                <Select 
+                  value={newBook.category?.toString() || ''}
+                  onValueChange={(value) => setNewBook({...newBook, category: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map((category) => (
+                      <SelectItem key={category._id} value={category._id}>
+                        {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="status" className="text-right">Status</Label>
+                <Select 
+                  value={newBook.status} 
+                  onValueChange={(value: any) => setNewBook({...newBook, status: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="Reserved">Reserved</SelectItem>
+                    <SelectItem value="Issued">Issued</SelectItem>
+                    <SelectItem value="Lost">Lost</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="copies" className="text-right">Copies</Label>
+                <Input 
+                  id="copies" 
+                  type="number"
+                  min="1"
+                  value={newBook.copies.toString()} 
+                  onChange={(e) => setNewBook({...newBook, copies: parseInt(e.target.value) || 1})}
+                  className="col-span-3" 
+                />
+              </div>
+              <div className="grid grid-cols-4 items-start gap-4">
+                <Label htmlFor="coverImage" className="text-right pt-2">Cover Image</Label>
+                <div className="col-span-3 space-y-2">
+                  <Input 
+                    id="coverImage" 
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="col-span-3" 
+                  />
+                  {coverImagePreview && (
+                    <div className="mt-2">
+                      <div className="text-sm text-gray-500 mb-1">Preview:</div>
+                      <div className="relative w-28 h-40 overflow-hidden rounded-md border border-gray-200">
+                        <img 
+                          src={coverImagePreview} 
+                          alt="Cover preview" 
+                          className="object-cover w-full h-full"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsAddDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Add Book</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-      <Card>
-        <CardContent className="p-0">
+      <Card className="border rounded-lg shadow-sm">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between">
+            <div className="w-full max-w-sm">
+              <Input
+                placeholder="Search by title, author, or ISBN..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </div>
+
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-muted/50 border-b">
@@ -469,177 +641,12 @@ export default function ManageBooksPage() {
                           >
                             View
                           </Button>
-                          <Dialog open={isEditDialogOpen && editingBook?._id === book._id} onOpenChange={(open: boolean) => {
-                            setIsEditDialogOpen(open);
-                            if (!open) {
-                              setEditingBook(null);
-                              setEditCoverImagePreview('');
-                              setEditCoverImageFile(null);
-                            }
-                          }}>
-                            <DialogTrigger asChild>
-                              <Button 
-                                className="bg-secondary h-9 px-3 rounded-md"
-                                onClick={async () => {
-                                  try {
-                                    // Fetch complete book details
-                                    const response = await bookService.getBookById(book._id);
-                                    if (response && response.book) {
-                                      // Ensure ISBN is properly set
-                                      const bookData = {
-                                        ...response.book,
-                                        ISBN: response.book.ISBN || response.book.isbn || '',
-                                        // Ensure category is properly set
-                                        category: response.book.category || ''
-                                      };
-                                      setEditingBook(bookData);
-                                      setEditCoverImagePreview(bookData.coverImage || bookData.imagePath || '');
-                                    } else {
-                                      toast({
-                                        title: "Error",
-                                        description: "Failed to fetch book details",
-                                        variant: "destructive",
-                                      });
-                                    }
-                                  } catch (error) {
-                                    console.error('Error fetching book details:', error);
-                                    toast({
-                                      title: "Error",
-                                      description: "Failed to fetch book details",
-                                      variant: "destructive",
-                                    });
-                                  }
-                                }}
-                              >
-                                Edit
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-[550px]">
-                              <DialogHeader>
-                                <DialogTitle>Edit Book</DialogTitle>
-                              </DialogHeader>
-                              {editingBook && (
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-bookNo" className="text-right">Book No.</Label>
-                                    <Input 
-                                      id="edit-bookNo" 
-                                      value={editingBook.bookNo || ''} 
-                                      onChange={(e) => setEditingBook({...editingBook, bookNo: e.target.value})}
-                                      className="col-span-3" 
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-title" className="text-right">Title</Label>
-                                    <Input 
-                                      id="edit-title" 
-                                      value={editingBook.title || ''} 
-                                      onChange={(e) => setEditingBook({...editingBook, title: e.target.value})}
-                                      className="col-span-3" 
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-author" className="text-right">Author</Label>
-                                    <Input 
-                                      id="edit-author" 
-                                      value={editingBook.author || ''} 
-                                      onChange={(e) => setEditingBook({...editingBook, author: e.target.value})}
-                                      className="col-span-3" 
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-ISBN" className="text-right">ISBN</Label>
-                                    <Input 
-                                      id="edit-ISBN" 
-                                      value={editingBook.ISBN || editingBook.isbn || ''} 
-                                      onChange={(e) => setEditingBook({...editingBook, ISBN: e.target.value})}
-                                      className="col-span-3" 
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-category" className="text-right">Category</Label>
-                                    <Select 
-                                      value={
-                                        editingBook.category
-                                          ? (typeof editingBook.category === 'object'
-                                            ? editingBook.category._id
-                                            : editingBook.category)
-                                          : ''
-                                      }
-                                      onValueChange={(value) => setEditingBook({
-                                        ...editingBook,
-                                        category: value
-                                      })}
-                                    >
-                                      <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select category" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {categories.map((category) => (
-                                          <SelectItem key={category._id} value={category._id}>
-                                            {category.name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-status" className="text-right">Status</Label>
-                                    <select
-                                      className="col-span-3 w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                                      value={editingBook.status}
-                                      onChange={(e) => setEditingBook({...editingBook, status: e.target.value as any})}
-                                    >
-                                      <option value="">Select status</option>
-                                      <option value="Available">Available</option>
-                                      <option value="Reserved">Reserved</option>
-                                      <option value="Issued">Issued</option>
-                                      <option value="Lost">Lost</option>
-                                    </select>
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-copies" className="text-right">Copies</Label>
-                                    <Input 
-                                      id="edit-copies" 
-                                      type="number"
-                                      min="1"
-                                      value={editingBook.copies.toString()} 
-                                      onChange={(e: ChangeEvent<HTMLInputElement>) => setEditingBook({...editingBook, copies: parseInt(e.target.value) || 1})}
-                                      className="col-span-3" 
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-start gap-4">
-                                    <Label htmlFor="edit-coverImage" className="text-right pt-2">Cover Image</Label>
-                                    <div className="col-span-3 space-y-2">
-                                      <Input 
-                                        id="edit-coverImage" 
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleEditImageChange}
-                                        className="col-span-3" 
-                                      />
-                                      {(editCoverImagePreview || editingBook.coverImage) && (
-                                        <div className="mt-2">
-                                          <div className="text-sm text-gray-500 mb-1">Preview:</div>
-                                          <div className="relative w-28 h-40 overflow-hidden rounded-md border border-gray-200">
-                                            <img 
-                                              src={editCoverImagePreview || editingBook.coverImage} 
-                                              alt="Cover preview" 
-                                              className="object-cover w-full h-full"
-                                            />
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                              <DialogFooter>
-                                <Button className="bg-secondary" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                                <Button onClick={handleEditBook}>Save Changes</Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                          <Button 
+                            className="bg-secondary h-9 px-3 rounded-md"
+                            onClick={() => navigate(`/admin/books/edit/${book._id}`)}
+                          >
+                            Edit
+                          </Button>
                           <Button 
                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 px-3 rounded-md"
                             onClick={() => {

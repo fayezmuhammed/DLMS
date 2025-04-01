@@ -273,7 +273,14 @@ const TransactionsPageAdmin: React.FC = () => {
   };
   
   const handleManualReturn = async (transaction: Transaction) => {
-    if (!transaction || typeof transaction.book !== 'object') return;
+    if (!transaction || !transaction.book) {
+      toast({
+        title: "Error",
+        description: "Invalid transaction. Cannot mark as returned.",
+        variant: "destructive",
+      });
+      return;
+    }
     
     try {
       const bookId = transaction.book._id;
@@ -335,15 +342,23 @@ const TransactionsPageAdmin: React.FC = () => {
 
   // Helper function to get book details from transaction
   const getBookDetails = (transaction: Transaction) => {
+    if (!transaction || !transaction.book) {
+      return {
+        title: 'Unknown Book',
+        author: 'Unknown Author',
+        id: 'unknown'
+      };
+    }
+    
     if (typeof transaction.book === 'object') {
       return {
-        title: transaction.book.title,
-        author: transaction.book.author,
+        title: transaction.book.title || 'Untitled Book',
+        author: transaction.book.author || 'Unknown Author',
         id: transaction.book._id
       };
-        }
-        
-        return {
+    }
+    
+    return {
       title: 'Unknown Book',
       author: 'Unknown Author',
       id: transaction.book
@@ -478,26 +493,26 @@ const TransactionsPageAdmin: React.FC = () => {
                 <Label htmlFor="dueDate" className="text-right">Due Date</Label>
                 <div className="col-span-3">
                   <div className="flex gap-2 items-center">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start text-left font-normal"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dueDate ? format(dueDate, 'PPP') : <span>Pick a date</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <Calendar
-                          mode="single"
-                          selected={dueDate}
-                          onSelect={setDueDate}
-                          initialFocus
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dueDate ? format(dueDate, 'PPP') : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={dueDate}
+                        onSelect={setDueDate}
+                        initialFocus
                           disabled={(date) => date < (issueDate || new Date())}
-                        />
-                      </PopoverContent>
-                    </Popover>
+                      />
+                    </PopoverContent>
+                  </Popover>
                     <div className="text-xs text-muted-foreground">
                       Based on {selectedUserRole === 'teacher' ? 'teacher' : 'student'} borrowing rules
                     </div>
@@ -569,8 +584,8 @@ const TransactionsPageAdmin: React.FC = () => {
                     <div className="flex flex-col md:flex-row gap-6">
                       <div className="space-y-4 flex-grow">
                         <div>
-                          <h3 className="text-xl font-semibold">{book.title}</h3>
-                          <p className="text-muted-foreground">by {book.author}</p>
+                          <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
+                          <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
                           {typeof transaction.user === 'object' ? (
                             <p className="text-sm mt-1">
                               User: {transaction.user.name} ({transaction.user.email})
@@ -605,7 +620,7 @@ const TransactionsPageAdmin: React.FC = () => {
                           <div className="text-xs text-red-600 mt-1">
                             {calculateDaysOverdue(transaction.dueDate)} days overdue
                             <br />
-                            Fine: ${calculateFine(transaction.dueDate)}
+                            Fine: ₹{calculateFine(transaction.dueDate)}
                           </div>
                         )}
                       </div>
