@@ -37,6 +37,10 @@ const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
 // Import the admin BookDetailPage with a different name to avoid conflicts
 const AdminBookDetailPage = lazy(() => import('@/pages/admin/BookDetailPage'));
 
+// Import the new pages
+import ReservationsPage from '@/pages/ReservationsPage';
+import ManageReservationsPage from '@/pages/admin/ManageReservationsPage';
+
 // Loading component
 const Loading = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -209,6 +213,7 @@ function App() {
             <Route path="no-due" element={<NoDuePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="books/:id" element={<AdminBookDetailPage />} />
+            <Route path="reservations" element={<ManageReservationsPage />} />
           </Route>
 
           {/* User Routes */}
@@ -248,6 +253,16 @@ function App() {
                   <Navigate to="/login" replace />
                 ) : (
                   <ProfilePage />
+                )
+              } 
+            />
+            <Route 
+              path="reservations" 
+              element={
+                !isAuthenticated ? (
+                  <Navigate to="/login" replace />
+                ) : (
+                  <ReservationsPage />
                 )
               } 
             />

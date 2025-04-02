@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { Book, bookService } from '@/services/bookService';
-import { transactionService } from '@/services/transactionService';
 import { WishlistItem, wishlistService } from '@/services/wishlistService';
+import { reservationService } from '@/services/reservationService';
 
 // Interface for User type
 interface User {
@@ -23,7 +23,7 @@ const BookDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [user, setUser] = useState<User | null>(null);
-  const [borrowing, setBorrowing] = useState(false);
+  const [reserving, setReserving] = useState(false);
   const [addingToWishlist, setAddingToWishlist] = useState(false);
 
   // Check if user is logged in
@@ -88,11 +88,11 @@ const BookDetailPage: React.FC = () => {
     }
   }, [id]);
 
-  const handleBorrowBook = async () => {
+  const handleReserveBook = async () => {
     if (!user) {
       toast({
         title: "Authentication required",
-        description: "Please log in to borrow books",
+        description: "Please log in to reserve books",
         variant: "destructive"
       });
       navigate('/login');
@@ -102,14 +102,14 @@ const BookDetailPage: React.FC = () => {
     if (!book) return;
 
     try {
-      setBorrowing(true);
+      setReserving(true);
       
-      const response = await transactionService.borrowBook(book._id);
+      const response = await reservationService.reserveBook(book._id);
       
       if (response.success) {
         toast({
           title: "Success",
-          description: "Book borrowed successfully.",
+          description: response.message || "Book reserved successfully. Your reservation is valid for 24 hours.",
         });
         // Refresh book data to update status
         if (id) {
@@ -123,20 +123,20 @@ const BookDetailPage: React.FC = () => {
         navigate('/transactions');
       } else {
         toast({
-          title: "Borrowing failed",
-          description: response.message || "Failed to borrow book",
+          title: "Reservation failed",
+          description: response.message || "Failed to reserve book",
           variant: "destructive"
         });
       }
     } catch (err: any) {
-      console.error('Error borrowing book:', err);
+      console.error('Error reserving book:', err);
       toast({
-        title: "Borrowing failed",
-        description: err.response?.data?.message || "Failed to borrow book. The book may not be available.",
+        title: "Reservation failed",
+        description: err.response?.data?.message || "Failed to reserve book. The book may not be available.",
         variant: "destructive"
       });
     } finally {
-      setBorrowing(false);
+      setReserving(false);
     }
   };
 
@@ -228,10 +228,10 @@ const BookDetailPage: React.FC = () => {
               <>
                 <Button 
                   className="w-full" 
-                  disabled={!isAvailable || borrowing}
-                  onClick={handleBorrowBook}
+                  disabled={!isAvailable || reserving}
+                  onClick={handleReserveBook}
                 >
-                  {borrowing ? 'Processing...' : isAvailable ? 'Borrow Book' : 'Currently Unavailable'}
+                  {reserving ? 'Processing...' : isAvailable ? 'Reserve Book' : 'Currently Unavailable'}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -245,7 +245,7 @@ const BookDetailPage: React.FC = () => {
             )}
             {!user && (
               <Button className="w-full" onClick={() => navigate('/login')}>
-                Login to Borrow
+                Login to Reserve
               </Button>
             )}
           </div>

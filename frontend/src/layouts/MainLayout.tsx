@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Clock } from 'lucide-react';
 
 interface User {
   _id: string;
@@ -110,6 +111,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                       My Transactions
                     </Link>
                     <Link 
+                      to="/reservations" 
+                      className={`hover:text-white/80 transition-colors ${
+                        location.pathname.startsWith('/reservations') ? 'font-semibold' : ''
+                      }`}
+                    >
+                      My Reservations
+                    </Link>
+                    <Link 
                       to="/wishlist" 
                       className={`hover:text-white/80 transition-colors ${
                         location.pathname.startsWith('/wishlist') ? 'font-semibold' : ''
@@ -157,6 +166,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/transactions">My Transactions</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/reservations">My Reservations</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/wishlist">My Wishlist</Link>

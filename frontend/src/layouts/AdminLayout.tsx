@@ -9,7 +9,8 @@ import {
   BarChart4, 
   Settings, 
   LogOut,
-  FileCheck 
+  FileCheck,
+  Clock
 } from 'lucide-react';
 
 interface AdminLayoutProps {
@@ -57,6 +58,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
     { path: '/admin/ebooks', label: 'Manage E-Books', icon: <FileText className="h-5 w-5 mr-3" /> },
     { path: '/admin/users', label: 'Manage Users', icon: <Users className="h-5 w-5 mr-3" /> },
     { path: '/admin/transactions', label: 'Transactions', icon: <BookOpen className="h-5 w-5 mr-3" /> },
+    { path: '/admin/reservations', label: 'Reservations', icon: <Clock className="h-5 w-5 mr-3" /> },
     { path: '/admin/reports', label: 'Reports', icon: <BarChart4 className="h-5 w-5 mr-3" /> },
     { path: '/admin/no-due', label: 'No Due', icon: <FileCheck className="h-5 w-5 mr-3" /> },
     { path: '/admin/settings', label: 'Settings', icon: <Settings className="h-5 w-5 mr-3" /> },
