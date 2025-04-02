@@ -71,6 +71,13 @@ exports.optionalAuth = async (req, res, next) => {
 
 exports.authorize = (...roles) => {
     return (req, res, next) => {
+        if (!req.user) {
+            return res.status(401).json({
+                success: false,
+                message: 'Authentication failed - user not found'
+            });
+        }
+        
         if (!roles.includes(req.user.role)) {
             return res.status(403).json({
                 success: false,
@@ -83,6 +90,13 @@ exports.authorize = (...roles) => {
 
 // Admin middleware
 exports.admin = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication failed - user not found'
+        });
+    }
+    
     if (req.user.role !== 'admin') {
         return res.status(403).json({
             success: false,

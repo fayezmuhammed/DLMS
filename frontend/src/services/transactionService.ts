@@ -17,6 +17,7 @@ export interface Transaction {
   dueDate: string;
   status: 'borrowed' | 'returned' | 'overdue';
   createdAt: string;
+  notes?: string;
 }
 
 interface IssueBookParams {
@@ -24,6 +25,7 @@ interface IssueBookParams {
   userId: string;
   issueDate: string;
   dueDate: string;
+  notes?: string;
 }
 
 export interface FineCalculation {
@@ -65,6 +67,11 @@ export const transactionService = {
   
   async getBookTransactions(bookId: string) {
     const response = await api.get(`/transactions/book/${bookId}`);
+    return response.data;
+  },
+
+  async getUserActiveTransactions(userId: string) {
+    const response = await api.get(`/transactions/user/${userId}/active`);
     return response.data;
   },
 

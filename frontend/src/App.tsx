@@ -25,6 +25,7 @@ const ManageBooksPage = lazy(() => import('@/pages/admin/ManageBooksPage'));
 const ManageUsersPage = lazy(() => import('@/pages/admin/ManageUsersPage'));
 const AddBookPage = lazy(() => import('@/pages/admin/AddBookPage'));
 const EditBookPage = lazy(() => import('@/pages/admin/EditBookPage'));
+const IssueBookPage = lazy(() => import('@/pages/admin/IssueBookPage'));
 // Additional admin pages (even if they're placeholders for now)
 const ManageEBooksPage = lazy(() => import('@/pages/admin/ManageEBooksPage'));
 const TransactionsPageAdmin = lazy(() => import('@/pages/admin/TransactionsPage'));
@@ -201,6 +202,7 @@ function App() {
             <Route path="users" element={<ManageUsersPage />} />
             <Route path="ebooks" element={<ManageEBooksPage />} />
             <Route path="transactions" element={<TransactionsPageAdmin />} />
+            <Route path="transactions/issue" element={<IssueBookPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="no-due" element={<NoDuePage />} />
             <Route path="settings" element={<SettingsPage />} />

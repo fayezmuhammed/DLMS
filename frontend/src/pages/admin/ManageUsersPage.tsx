@@ -298,13 +298,16 @@ const ManageUsersPage: React.FC = () => {
                   <th className="h-12 px-4 text-left align-middle font-medium">Admission No.</th>
                   <th className="h-12 px-4 text-left align-middle font-medium">Batch</th>
                   <th className="h-12 px-4 text-left align-middle font-medium">Joined On</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Actions</th>
+                  <th className="h-12 px-4 text-center align-middle font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody className="[&_tr:last-child]:border-0">
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => (
-                    <tr key={user._id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                    <tr 
+                      key={user._id} 
+                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                    >
                       <td className="p-4 align-middle">{user.name}</td>
                       <td className="p-4 align-middle">{user.email}</td>
                       <td className="p-4 align-middle">{user.role}</td>
@@ -312,95 +315,27 @@ const ManageUsersPage: React.FC = () => {
                       <td className="p-4 align-middle">{user.batch || '-'}</td>
                       <td className="p-4 align-middle">{user.createdAt ? formatDate(user.createdAt) : '-'}</td>
                       <td className="p-4 align-middle">
-                        <div className="flex space-x-2">
-                          <Dialog open={isEditDialogOpen && editingUser?._id === user._id} onOpenChange={(open) => {
-                            setIsEditDialogOpen(open);
-                            if (!open) setEditingUser(null);
-                          }}>
-                            <DialogTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => setEditingUser(user)}
-                              >
-                                Edit
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Edit User</DialogTitle>
-                              </DialogHeader>
-                              {editingUser && (
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-name" className="text-right">Name</Label>
-                                    <Input 
-                                      id="edit-name" 
-                                      value={editingUser.name} 
-                                      onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
-                                      className="col-span-3" 
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-email" className="text-right">Email</Label>
-                                    <Input 
-                                      id="edit-email" 
-                                      type="email"
-                                      value={editingUser.email} 
-                                      onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
-                                      className="col-span-3" 
-                                    />
-                                  </div>
-                                  <div className="grid grid-cols-4 items-center gap-4">
-                                    <Label htmlFor="edit-role" className="text-right">Role</Label>
-                                    <Select 
-                                      value={editingUser.role} 
-                                      onValueChange={(value) => setEditingUser({...editingUser, role: value})}
-                                    >
-                                      <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select role" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        <SelectItem value="student">Student</SelectItem>
-                                        <SelectItem value="teacher">Teacher</SelectItem>
-                                        <SelectItem value="admin">Admin</SelectItem>
-                                      </SelectContent>
-                                    </Select>
-                                  </div>
-                                  {(editingUser.role === 'Student' || editingUser.role === 'student') && (
-                                    <>
-                                      <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="edit-admissionNumber" className="text-right">Admission Number</Label>
-                                        <Input 
-                                          id="edit-admissionNumber" 
-                                          value={editingUser.admissionNumber || ''} 
-                                          onChange={(e) => setEditingUser({...editingUser, admissionNumber: e.target.value})}
-                                          className="col-span-3" 
-                                        />
-                                      </div>
-                                      <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor="edit-batch" className="text-right">Batch</Label>
-                                        <Input 
-                                          id="edit-batch" 
-                                          value={editingUser.batch || ''} 
-                                          onChange={(e) => setEditingUser({...editingUser, batch: e.target.value})}
-                                          className="col-span-3" 
-                                        />
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                              )}
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-                                <Button onClick={handleEditUser}>Save Changes</Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
+                        <div className="flex justify-center gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent row click event
+                              setEditingUser(user);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            Edit
+                          </Button>
                           <Button 
                             variant="destructive" 
                             size="sm"
-                            onClick={() => handleDeleteUser(user._id)}
+                            onClick={(e) => {
+                              e.stopPropagation(); // Prevent row click event
+                              if (window.confirm(`Are you sure you want to delete ${user.name}?`)) {
+                                handleDeleteUser(user._id);
+                              }
+                            }}
                           >
                             Delete
                           </Button>
@@ -418,6 +353,96 @@ const ManageUsersPage: React.FC = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) setEditingUser(null);
+      }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          {editingUser && (
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-name" className="text-right">Name</Label>
+                <Input 
+                  id="edit-name" 
+                  value={editingUser.name} 
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})}
+                  className="col-span-3" 
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-email" className="text-right">Email</Label>
+                <Input 
+                  id="edit-email" 
+                  type="email"
+                  value={editingUser.email} 
+                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
+                  className="col-span-3" 
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-role" className="text-right">Role</Label>
+                <Select 
+                  value={editingUser.role} 
+                  onValueChange={(value) => setEditingUser({...editingUser, role: value})}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="student">Student</SelectItem>
+                    <SelectItem value="teacher">Teacher</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {(editingUser.role === 'Student' || editingUser.role === 'student') && (
+                <>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-admissionNumber" className="text-right">Admission Number</Label>
+                    <Input 
+                      id="edit-admissionNumber" 
+                      value={editingUser.admissionNumber || ''} 
+                      onChange={(e) => setEditingUser({...editingUser, admissionNumber: e.target.value})}
+                      className="col-span-3" 
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-batch" className="text-right">Batch</Label>
+                    <Input 
+                      id="edit-batch" 
+                      value={editingUser.batch || ''} 
+                      onChange={(e) => setEditingUser({...editingUser, batch: e.target.value})}
+                      className="col-span-3" 
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <DialogFooter className="flex justify-between">
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                if (editingUser && window.confirm(`Are you sure you want to delete ${editingUser.name}?`)) {
+                  handleDeleteUser(editingUser._id);
+                  setIsEditDialogOpen(false);
+                }
+              }}
+            >
+              Delete User
+            </Button>
+            <div>
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="mr-2">Cancel</Button>
+              <Button onClick={handleEditUser}>Save Changes</Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

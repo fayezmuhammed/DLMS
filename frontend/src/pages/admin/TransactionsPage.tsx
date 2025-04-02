@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -11,23 +11,10 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogFooter, 
-  DialogTrigger 
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
-import { format } from 'date-fns';
 import { Transaction, transactionService } from '@/services/transactionService';
-import { bookService, Book } from '@/services/bookService';
+import { bookService } from '@/services/bookService';
 import { toast } from '@/components/ui/use-toast';
-import { userService } from '@/services/userService';
+import { useNavigate } from 'react-router-dom';
 import settingsService, { BorrowingRules } from '@/services/settingsService';
 
 const TransactionsPageAdmin: React.FC = () => {
@@ -38,17 +25,6 @@ const TransactionsPageAdmin: React.FC = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [isIssueDialogOpen, setIsIssueDialogOpen] = useState(false);
-  const [availableBooks, setAvailableBooks] = useState<Book[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
-  const [selectedBook, setSelectedBook] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [selectedUserRole, setSelectedUserRole] = useState<string>('student');
-  const [issueDate, setIssueDate] = useState<Date | undefined>(new Date());
-  const [dueDate, setDueDate] = useState<Date | undefined>(
-    new Date(new Date().setDate(new Date().getDate() + 14)) // Default due date
-  );
-  const [issuingBook, setIssuingBook] = useState(false);
   const [borrowingRules, setBorrowingRules] = useState<BorrowingRules>({
     maxBooksStudent: 3,
     maxBooksTeacher: 5,
@@ -56,6 +32,8 @@ const TransactionsPageAdmin: React.FC = () => {
     maxDaysTeacher: 30,
     finePerDay: 0.5
   });
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchTransactions();
@@ -73,19 +51,11 @@ const TransactionsPageAdmin: React.FC = () => {
           const book = typeof transaction.book === 'object' ? transaction.book : null;
           const bookTitle = book?.title || '';
           
-          // Handle user as either string or object
-          let userName = '';
-          if (typeof transaction.user === 'object') {
-            userName = transaction.user.name || '';
-            const userEmail = transaction.user.email || '';
-            return bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                  userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  userEmail.toLowerCase().includes(searchTerm.toLowerCase());
-          } else {
-            userName = 'User ID: ' + transaction.user;
-            return bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                  userName.toLowerCase().includes(searchTerm.toLowerCase());
-          }
+          // Use the getUserName helper to safely get user info
+          const userInfo = getUserName(transaction);
+          
+          return bookTitle.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                userInfo.toLowerCase().includes(searchTerm.toLowerCase());
         });
       }
       
@@ -131,73 +101,6 @@ const TransactionsPageAdmin: React.FC = () => {
     }
   };
 
-  const fetchAvailableBooks = async () => {
-    try {
-      // Get all books, not just those with status 'Available'
-      const response = await bookService.getBooks();
-      
-      if (response.success && response.data) {
-        // Filter to find books that have available copies
-        const availableBooksData = await Promise.all(
-          response.data.map(async (book) => {
-            // Count active transactions for each book
-            const transactionsResponse = await transactionService.getBookTransactions(book._id);
-            
-            if (transactionsResponse.success) {
-              const activeTransactions = transactionsResponse.data.filter(
-                (tx) => tx.status === 'borrowed' || tx.status === 'overdue'
-              ).length;
-              
-              // Book is available if it has more copies than active transactions
-              return book.copies > activeTransactions ? book : null;
-            }
-            
-            return null;
-          })
-        );
-        
-        // Filter out null values
-        setAvailableBooks(availableBooksData.filter(book => book !== null));
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load available books.",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching available books:', err);
-      toast({
-        title: "Error",
-        description: "Failed to load available books.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchUsers = async () => {
-    try {
-      // Replace the mock data with a real API call using userService
-      const response = await userService.getUsers();
-      if (response.success && response.data) {
-        setUsers(response.data);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load users.",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err);
-      toast({
-        title: "Error",
-        description: "Failed to load users.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const fetchBorrowingRules = async () => {
     try {
       const response = await settingsService.getBorrowingRules();
@@ -211,64 +114,6 @@ const TransactionsPageAdmin: React.FC = () => {
         description: "Failed to load borrowing rules.",
         variant: "destructive",
       });
-    }
-  };
-
-  const handleOpenIssueDialog = () => {
-    fetchAvailableBooks();
-    fetchUsers();
-    setIsIssueDialogOpen(true);
-  };
-
-  const handleIssueBook = async () => {
-    if (!selectedBook || !selectedUser || !issueDate || !dueDate) {
-      toast({
-        title: "Missing information",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setIssuingBook(true);
-      
-      // Use the transactionService to issue the book to the selected user
-      const response = await transactionService.issueBook({
-        bookId: selectedBook,
-        userId: selectedUser,
-        issueDate: issueDate.toISOString(),
-        dueDate: dueDate.toISOString()
-      });
-      
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Book issued successfully",
-        });
-        
-    setIsIssueDialogOpen(false);
-    setSelectedBook(null);
-    setSelectedUser(null);
-        
-        // Refresh transactions
-        fetchTransactions();
-      } else {
-        toast({
-          title: "Failed to issue book",
-          description: response.message || "Please try again later",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error('Error issuing book:', err);
-      toast({
-        title: "Error",
-        description: "Failed to issue the book. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setIssuingBook(false);
     }
   };
   
@@ -365,6 +210,23 @@ const TransactionsPageAdmin: React.FC = () => {
     };
   };
 
+  // Get user name from transaction
+  const getUserName = (transaction: any) => {
+    let userName = '';
+    
+    if (transaction.user && typeof transaction.user === 'object') {
+      userName = transaction.user.name || 'Unknown User';
+      const userEmail = transaction.user.email || 'No email';
+      
+      // Return formatted name with email
+      return `${userName} (${userEmail})`;
+    } else {
+      // Handle if user is just an ID or null
+      userName = transaction.user ? 'User ID: ' + transaction.user : 'Unknown User';
+      return userName;
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-12">Loading transactions...</div>;
   }
@@ -389,148 +251,7 @@ const TransactionsPageAdmin: React.FC = () => {
           </p>
         </div>
         
-        <Dialog open={isIssueDialogOpen} onOpenChange={setIsIssueDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={handleOpenIssueDialog}>Issue New Book</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Issue New Book</DialogTitle>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="book" className="text-right">Book</Label>
-                <Select 
-                  value={selectedBook || ''} 
-                  onValueChange={setSelectedBook}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select book" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableBooks.map(book => (
-                      <SelectItem key={book._id} value={book._id}>
-                        {book.title} by {book.author}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="user" className="text-right">User</Label>
-                <Select 
-                  value={selectedUser || ''} 
-                  onValueChange={(userId) => {
-                    setSelectedUser(userId);
-                    
-                    // Find the selected user to get their role
-                    const user = users.find(u => u._id === userId);
-                    if (user) {
-                      const userRole = user.role.toLowerCase();
-                      setSelectedUserRole(userRole);
-                      
-                      // Set due date based on user role if issue date exists
-                      if (issueDate) {
-                        const daysToAdd = userRole === 'teacher' ? 
-                          borrowingRules.maxDaysTeacher : borrowingRules.maxDaysStudent;
-                        
-                        const newDueDate = new Date(issueDate);
-                        newDueDate.setDate(newDueDate.getDate() + daysToAdd);
-                        setDueDate(newDueDate);
-                      }
-                    }
-                  }}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map(user => (
-                      <SelectItem key={user._id} value={user._id}>
-                        {user.name} ({user.email}) - {user.role}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="issueDate" className="text-right">Issue Date</Label>
-                <div className="col-span-3">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {issueDate ? format(issueDate, 'PPP') : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={issueDate}
-                        onSelect={(date) => {
-                          setIssueDate(date);
-                          
-                          // Recalculate due date when issue date changes
-                          if (date && selectedUser) {
-                            const daysToAdd = selectedUserRole === 'teacher' ? 
-                              borrowingRules.maxDaysTeacher : borrowingRules.maxDaysStudent;
-                            
-                            const newDueDate = new Date(date);
-                            newDueDate.setDate(newDueDate.getDate() + daysToAdd);
-                            setDueDate(newDueDate);
-                          }
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="dueDate" className="text-right">Due Date</Label>
-                <div className="col-span-3">
-                  <div className="flex gap-2 items-center">
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {dueDate ? format(dueDate, 'PPP') : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={dueDate}
-                        onSelect={setDueDate}
-                        initialFocus
-                          disabled={(date) => date < (issueDate || new Date())}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                    <div className="text-xs text-muted-foreground">
-                      Based on {selectedUserRole === 'teacher' ? 'teacher' : 'student'} borrowing rules
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsIssueDialogOpen(false)}>Cancel</Button>
-              <Button 
-                disabled={issuingBook}
-                onClick={handleIssueBook}
-              >
-                {issuingBook ? 'Processing...' : 'Issue Book'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => navigate('/admin/transactions/issue')}>Issue New Book</Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
@@ -586,12 +307,12 @@ const TransactionsPageAdmin: React.FC = () => {
                         <div>
                           <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
                           <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
-                          {typeof transaction.user === 'object' ? (
+                          {transaction.user && typeof transaction.user === 'object' ? (
                             <p className="text-sm mt-1">
-                              User: {transaction.user.name} ({transaction.user.email})
+                              User: {getUserName(transaction)}
                             </p>
                           ) : (
-                            <p className="text-sm mt-1">User ID: {transaction.user}</p>
+                            <p className="text-sm mt-1">User ID: {getUserName(transaction)}</p>
                           )}
                         </div>
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

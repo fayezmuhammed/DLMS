@@ -27,6 +27,13 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       // Clear state after showing message
       window.history.replaceState({}, document.title);
     }
+    
+    // Check for authentication error messages stored in sessionStorage
+    const authError = sessionStorage.getItem('authError');
+    if (authError) {
+      setError(authError);
+      sessionStorage.removeItem('authError');
+    }
   }, [state]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -59,9 +66,18 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
           return;
         }
         
-        // Remove token from userData before passing to onLogin
+        // Store token in localStorage
+        if (userData.token) {
+          localStorage.setItem('token', userData.token);
+        }
+        
+        // Create a user object without the token to avoid security risks
+        const userForStorage = { ...userData };
+        delete userForStorage.token;
+        
+        // Call onLogin with user data for state update
         if (onLogin) {
-          onLogin(userData);
+          onLogin(userForStorage);
         }
         
         if (userData.role.toLowerCase() === 'admin') {

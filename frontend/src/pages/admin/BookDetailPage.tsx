@@ -340,7 +340,9 @@ const BookDetailPage: React.FC = () => {
                   <TableBody>
                     {transactions.map((transaction) => {
                       // Get user info
-                      const user = typeof transaction.user === 'object' ? transaction.user : { name: 'Unknown' };
+                      const user = transaction.user && typeof transaction.user === 'object' 
+                        ? transaction.user 
+                        : { name: transaction.user ? `ID: ${transaction.user}` : 'Unknown User' };
                       
                       return (
                         <TableRow key={transaction._id}>

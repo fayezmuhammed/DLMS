@@ -377,6 +377,15 @@ export default function ManageBooksPage() {
         </div>
       </div>
       
+      <div className="mb-4">
+        <Input
+          placeholder="Search by title, author, or ISBN..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-md"
+        />
+      </div>
+      
       {/* Import Books Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -587,17 +596,6 @@ export default function ManageBooksPage() {
 
       <Card className="border rounded-lg shadow-sm">
         <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div className="w-full max-w-sm">
-              <Input
-                placeholder="Search by title, author, or ISBN..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full"
-              />
-            </div>
-          </div>
-
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-muted/50 border-b">
@@ -616,7 +614,10 @@ export default function ManageBooksPage() {
               <tbody>
                 {filteredBooks.length > 0 ? (
                   filteredBooks.map((book: Book) => (
-                    <tr key={book._id} className="border-b hover:bg-muted/50">
+                    <tr 
+                      key={book._id} 
+                      className="border-b hover:bg-muted/50"
+                    >
                       <td className="py-3 px-4">{book.bookNo}</td>
                       <td className="py-3 px-4">{book.title}</td>
                       <td className="py-3 px-4">{book.author}</td>
@@ -634,22 +635,22 @@ export default function ManageBooksPage() {
                       <td className="py-3 px-4 text-center">{book.copies}</td>
                       <td className="py-3 px-4">{book.addedOn}</td>
                       <td className="py-3 px-4">
-                        <div className="flex justify-center space-x-2">
+                        <div className="flex justify-center gap-2">
                           <Button 
-                            className="bg-primary h-9 px-3 rounded-md"
-                            onClick={() => navigate(`/admin/books/${book._id}`)}
-                          >
-                            View
-                          </Button>
-                          <Button 
-                            className="bg-secondary h-9 px-3 rounded-md"
-                            onClick={() => navigate(`/admin/books/edit/${book._id}`)}
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/admin/books/edit/${book._id}`);
+                            }}
                           >
                             Edit
                           </Button>
                           <Button 
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 h-9 px-3 rounded-md"
-                            onClick={() => {
+                            variant="destructive" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
                               if (window.confirm(`Are you sure you want to delete "${book.title}"?`)) {
                                 handleDeleteBook(book._id);
                               }
@@ -663,7 +664,7 @@ export default function ManageBooksPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={8} className="py-6 text-center text-muted-foreground">
+                    <td colSpan={9} className="py-6 text-center text-muted-foreground">
                       No books found. Try adjusting your search.
                     </td>
                   </tr>

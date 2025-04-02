@@ -79,43 +79,6 @@ const TransactionsPage: React.FC = () => {
     }
   };
 
-  const handleReturnBook = async (bookId: string) => {
-    if (!bookId) {
-      toast({
-        title: "Error",
-        description: "Invalid book ID. Cannot return book.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-      const response = await transactionService.returnBook(bookId);
-      
-      if (response.success) {
-        toast({
-          title: "Book returned successfully",
-          description: "The book has been returned to the library.",
-        });
-        // Refresh the transactions list
-        fetchTransactions();
-      } else {
-        toast({
-          title: "Failed to return book",
-          description: response.message || "Please try again later.",
-          variant: "destructive",
-        });
-      }
-    } catch (err) {
-      console.error('Error returning book:', err);
-      toast({
-        title: "Error",
-        description: "Failed to return the book. Please try again later.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleBorrowAgain = async (bookId: string) => {
     if (!bookId) {
       toast({
@@ -339,12 +302,6 @@ const TransactionsPage: React.FC = () => {
                             </div>
                           )}
                           <div className="flex gap-2">
-                            <Button 
-                              variant="outline"
-                              onClick={() => handleReturnBook(typeof transaction.book === 'object' ? transaction.book._id : transaction.book)}
-                            >
-                              Return Book
-                            </Button>
                             {transaction.status === 'overdue' && (
                               <Button 
                                 variant="secondary"
