@@ -6,7 +6,11 @@ const bcrypt = require('bcryptjs');
 // @access  Private/Admin
 exports.getUsers = async (req, res) => {
     try {
-        const users = await User.find();
+        // Explicitly select all fields including admissionNumber and batch
+        const users = await User.find().select('name email role admissionNumber batch createdAt');
+        
+        // Debug log for the server
+        console.log('Users data from DB:', users.slice(0, 2));
         
         res.json({
             success: true,
@@ -53,13 +57,24 @@ exports.createUser = async (req, res) => {
     try {
         const { name, email, password, role, admissionNumber, batch } = req.body;
         
-        // Check if user exists
+        // Check if user exists with the same email
         const userExists = await User.findOne({ email });
         if (userExists) {
             return res.status(400).json({
                 success: false,
-                message: 'User already exists'
+                message: 'User already exists with this email'
             });
+        }
+        
+        // Check if admission number is already in use (for students)
+        if (admissionNumber && (role === 'Student' || role === 'student')) {
+            const admissionExists = await User.findOne({ admissionNumber });
+            if (admissionExists) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This admission number is already assigned to another student'
+                });
+            }
         }
         
         // Create user with provided fields
@@ -104,6 +119,22 @@ exports.updateUser = async (req, res) => {
                 success: false,
                 message: 'User not found'
             });
+        }
+        
+        // Check if admission number is changed and already in use
+        if (admissionNumber && admissionNumber !== user.admissionNumber && 
+            (role === 'Student' || role === 'student' || user.role === 'student')) {
+            const admissionExists = await User.findOne({ 
+                admissionNumber,
+                _id: { $ne: user._id } // Exclude current user from check
+            });
+            
+            if (admissionExists) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This admission number is already assigned to another student'
+                });
+            }
         }
         
         // Update user fields

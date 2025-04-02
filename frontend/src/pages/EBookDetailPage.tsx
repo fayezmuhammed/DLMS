@@ -176,7 +176,8 @@ const EBookDetailPage: React.FC = () => {
   }
 
   // Check if the e-book is viewable directly in the browser
-  const canViewInBrowser = ebook.fileType === 'pdf';
+  const canViewInBrowser = ebook.fileType === 'pdf' || ebook.fileType === 'epub';
+  // Allow both PDF and EPUB files to be viewed in browser
 
   return (
     <div>
@@ -341,11 +342,20 @@ const EBookDetailPage: React.FC = () => {
             <TabsContent value="preview" className="mt-4">
               {canViewInBrowser ? (
                 <div className="aspect-video rounded overflow-hidden border border-border">
-                  <iframe 
-                    src={`${ebookService.getViewUrl(ebook._id)}#toolbar=0&navpanes=0`}
-                    title={`Preview of ${ebook.title}`}
-                    className="w-full h-full"
-                  />
+                  {ebook.fileType === 'pdf' ? (
+                    <iframe 
+                      src={`${ebookService.getViewUrl(ebook._id)}#toolbar=0&navpanes=0`}
+                      title={`Preview of ${ebook.title}`}
+                      className="w-full h-full"
+                    />
+                  ) : (
+                    <iframe 
+                      src={`${ebookService.getViewUrl(ebook._id)}`}
+                      title={`Preview of ${ebook.title}`}
+                      className="w-full h-[800px]" 
+                      sandbox="allow-same-origin allow-scripts"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="text-center py-4">

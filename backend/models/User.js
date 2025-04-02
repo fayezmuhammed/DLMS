@@ -28,10 +28,14 @@ const userSchema = new mongoose.Schema({
         default: 'student'
     },
     admissionNumber: {
-        type: String
+        type: String,
+        default: null,
+        sparse: true,
+        unique: true
     },
     batch: {
-        type: String
+        type: String,
+        default: null
     },
     isVerified: {
         type: Boolean,

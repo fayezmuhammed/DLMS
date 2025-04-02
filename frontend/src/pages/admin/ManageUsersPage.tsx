@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/ui/use-toast';
 import api from '@/utils/api';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   _id: string;
@@ -17,6 +18,7 @@ interface User {
   admissionNumber?: string;
   joinedOn: string;
   createdAt: string;
+  [key: string]: any; // Add index signature to allow dynamic property access
 }
 
 const ManageUsersPage: React.FC = () => {
@@ -34,6 +36,8 @@ const ManageUsersPage: React.FC = () => {
   });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  
+  const navigate = useNavigate();
 
   const fetchUsers = async () => {
     try {
@@ -42,7 +46,34 @@ const ManageUsersPage: React.FC = () => {
       
       const response = await api.get('/users');
       if (response.data.success) {
-        setUsers(response.data.data);
+        // Log full response and specific student data
+        console.log('Full API response:', response.data);
+        
+        // Transform the data if needed to ensure proper property access
+        const transformedUsers = response.data.data.map((user: any) => {
+          // Log each user object to debug
+          console.log('User data:', user);
+          
+          return {
+            ...user,
+            // Ensure properties exist with fallbacks
+            admissionNumber: user.admissionNumber || null,
+            batch: user.batch || null
+          };
+        });
+        
+        // Check student data
+        const students = transformedUsers.filter((user: User) => 
+          user.role.toLowerCase() === 'student'
+        );
+        
+        if (students.length > 0) {
+          console.log('First student with data:', students[0]);
+          console.log('Admission number:', students[0].admissionNumber);
+          console.log('Batch:', students[0].batch);
+        }
+        
+        setUsers(transformedUsers);
       } else {
         setError('Failed to load users');
       }
@@ -94,9 +125,17 @@ const ManageUsersPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error adding user:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to add user';
+      
+      // Highlight specific errors for better user experience
+      let description = errorMessage;
+      if (errorMessage.includes('admission number')) {
+        description = 'This admission number is already in use. Please use a unique admission number.';
+      }
+      
       toast({
         title: 'Error',
-        description: err.response?.data?.message || 'Failed to add user',
+        description,
         variant: 'destructive',
       });
     }
@@ -133,9 +172,17 @@ const ManageUsersPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error updating user:', err);
+      const errorMessage = err.response?.data?.message || 'Failed to update user';
+      
+      // Highlight specific errors for better user experience
+      let description = errorMessage;
+      if (errorMessage.includes('admission number')) {
+        description = 'This admission number is already in use. Please use a unique admission number.';
+      }
+      
       toast({
         title: 'Error',
-        description: err.response?.data?.message || 'Failed to update user',
+        description,
         variant: 'destructive',
       });
     }
@@ -306,13 +353,24 @@ const ManageUsersPage: React.FC = () => {
                   filteredUsers.map((user) => (
                     <tr 
                       key={user._id} 
-                      className="border-b hover:bg-muted/50"
+                      className="border-b hover:bg-muted/50 cursor-pointer"
+                      onClick={() => {
+                        navigate(`/admin/users/${user._id}`);
+                      }}
                     >
                       <td className="py-3 px-4">{user.name}</td>
                       <td className="py-3 px-4">{user.email}</td>
                       <td className="py-3 px-4">{user.role}</td>
-                      <td className="py-3 px-4">{(user.role === 'student' || user.role === 'Student') ? user.admissionNumber || '-' : '-'}</td>
-                      <td className="py-3 px-4">{user.batch || '-'}</td>
+                      <td className="py-3 px-4">
+                        {user.role.toLowerCase() === 'student' ? 
+                          (user.admissionNumber ? user.admissionNumber : '(Not set)') : 
+                          '-'}
+                      </td>
+                      <td className="py-3 px-4">
+                        {user.role.toLowerCase() === 'student' ? 
+                          (user.batch ? user.batch : '(Not set)') : 
+                          '-'}
+                      </td>
                       <td className="py-3 px-4">{user.createdAt ? formatDate(user.createdAt) : '-'}</td>
                       <td className="py-3 px-4">
                         <div className="flex justify-center gap-2">

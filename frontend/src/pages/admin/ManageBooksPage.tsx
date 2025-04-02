@@ -457,7 +457,8 @@ export default function ManageBooksPage() {
                   filteredBooks.map((book: Book) => (
                     <tr 
                       key={book._id} 
-                      className="border-b hover:bg-muted/50"
+                      className="border-b hover:bg-muted/50 cursor-pointer"
+                      onClick={() => navigate(`/admin/books/edit/${book._id}`)}
                     >
                       <td className="py-3 px-4">{book.bookNo}</td>
                       <td className="py-3 px-4">{book.title}</td>

@@ -13,20 +13,18 @@ const eBookSchema = new mongoose.Schema({
     },
     isbn: {
         type: String,
-        required: [true, 'Please add an ISBN'],
         trim: true,
         validate: {
             validator: function(v) {
-                // Basic ISBN validation
-                return v && v.length > 0;
+                // Basic ISBN validation - only if present
+                return !v || (v && v.length > 0);
             },
             message: props => `${props.value} is not a valid ISBN!`
         }
     },
     category: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Category',
-        required: [true, 'Please add a category']
+        ref: 'Category'
     },
     status: {
         type: String,

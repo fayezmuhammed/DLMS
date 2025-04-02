@@ -3,10 +3,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Download, Printer } from "lucide-react";
-import { useReactToPrint } from 'react-to-print';
+import { Loader2, Printer } from "lucide-react";
 import { format } from 'date-fns';
 import { studentService, Student, Due } from '@/services/studentService';
+import api from '@/utils/api';
 
 // Print styles
 const printStyles = `
@@ -23,6 +23,15 @@ const printStyles = `
       top: 0;
       width: 100%;
       height: 100%;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+    }
+    .certificate-wrapper {
+      height: auto !important;
+      overflow: visible !important;
+      display: block !important;
+      border: none !important;
     }
     @page {
       size: A4;
@@ -34,10 +43,26 @@ const printStyles = `
   }
 `;
 
+interface ActiveBorrowing {
+  bookTitle: string;
+  dueDate: string;
+}
+
+interface Transaction {
+  status: string;
+  book: {
+    title: string;
+    [key: string]: any;
+  };
+  dueDate: string;
+  [key: string]: any;
+}
+
 const NoDuePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [student, setStudent] = useState<Student | null>(null);
   const [dues, setDues] = useState<Due[]>([]);
+  const [activeBorrowings, setActiveBorrowings] = useState<ActiveBorrowing[]>([]);
   const [loading, setLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
@@ -56,45 +81,190 @@ const NoDuePage = () => {
     };
   }, []);
 
-  const handlePrint = useReactToPrint({
-    content: () => certificateRef.current,
-    documentTitle: `No_Due_Certificate_${student?.admissionNumber || 'Student'}`,
-    onBeforeGetContent: () => {
-      return new Promise<void>((resolve) => {
-        setShowPreview(true);
-        setTimeout(() => {
-          resolve();
-        }, 500);
-      });
-    },
-    onAfterPrint: () => {
-      setShowPreview(false);
-    },
-    removeAfterPrint: false,
-    suppressErrors: false,
-    onPrintError: (error) => {
-      console.error("Print error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to print: " + error,
-        variant: "destructive",
-      });
-      setShowPreview(false);
-    },
-    copyStyles: true,
-    pageStyle: "@page { size: A4; margin: 2cm; }",
-  });
-
-  const downloadCertificate = () => {
-    if (student) {
-      console.log("Attempting to print certificate");
-      handlePrint();
-    } else {
+  const printCertificate = async () => {
+    if (!student) {
       toast({
         title: "Error",
         description: "No student data available",
         variant: "destructive",
       });
+      return;
+    }
+
+    // Set loading state
+    setLoading(true);
+    toast({
+      title: "Checking",
+      description: "Verifying student status before printing...",
+    });
+
+    try {
+      // Re-fetch dues to be absolutely sure
+      const duesResponse = await studentService.getStudentDues(student._id);
+      const currentDues = duesResponse.success ? duesResponse.data || [] : [];
+      
+      // Re-fetch active borrowings to be absolutely sure
+      const currentBorrowings = await checkActiveBorrowings(student._id);
+      
+      // Update UI with latest data
+      setDues(currentDues);
+      setActiveBorrowings(currentBorrowings);
+      
+      // Absolute check for any issues
+      if (currentDues.length > 0) {
+        setShowPreview(false);
+        toast({
+          title: "Cannot Print",
+          description: `Student has ${currentDues.length} outstanding dues. Cannot issue No Due Certificate.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      if (currentBorrowings.length > 0) {
+        setShowPreview(false);
+        toast({
+          title: "Cannot Print",
+          description: `Student has ${currentBorrowings.length} active borrowings. Cannot issue No Due Certificate.`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // If we got this far, the student is eligible for a certificate
+      setShowPreview(true);
+      setTimeout(() => {
+        printCertificateHelper();
+      }, 500);
+    } catch (error) {
+      console.error("Error verifying student status:", error);
+      toast({
+        title: "Error",
+        description: "Failed to verify student status. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const printCertificateHelper = () => {
+    console.log("Printing certificate");
+    
+    if (!certificateRef.current) {
+      console.error("Certificate reference is not available");
+      toast({
+        title: "Error",
+        description: "Certificate is not ready to print",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    console.log("Using direct print method");
+    
+    try {
+      // Create a new window with just the certificate
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        throw new Error("Could not open print window");
+      }
+      
+      // Write the certificate HTML to the new window
+      const certificateHTML = certificateRef.current.outerHTML;
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>No Due Certificate - ${student?.admissionNumber || 'Student'}</title>
+            <style>
+              body {
+                margin: 0;
+                padding: 0;
+                font-family: Arial, sans-serif;
+              }
+              .print-container {
+                width: 210mm;
+                margin: 0 auto;
+                padding: 20mm;
+                box-sizing: border-box;
+              }
+              @media print {
+                @page {
+                  size: A4;
+                  margin: 0;
+                }
+                body {
+                  margin: 0;
+                }
+              }
+            </style>
+          </head>
+          <body>
+            ${certificateHTML}
+            <script>
+              window.onload = function() {
+                setTimeout(function() {
+                  window.print();
+                  window.close();
+                }, 500);
+              };
+            </script>
+          </body>
+        </html>
+      `);
+      
+      printWindow.document.close();
+    } catch (error) {
+      console.error("Print failed:", error);
+      toast({
+        title: "Error",
+        description: "Print failed. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const checkActiveBorrowings = async (userId: string) => {
+    try {
+      console.log(`Fetching active borrowings for user ID: ${userId}`);
+      
+      // Use the correct API endpoint for user active transactions
+      const response = await api.get(`/transactions/user/${userId}/active`);
+      
+      if (!response.data || !response.data.success) {
+        console.error('Failed to fetch borrowings:', response.data);
+        return [];
+      }
+      
+      console.log('All transactions returned from API:', response.data.data);
+      
+      if (!Array.isArray(response.data.data)) {
+        console.error('API did not return array of transactions:', response.data.data);
+        return [];
+      }
+      
+      // All transactions returned from this endpoint should be active borrowings
+      const activeItems = response.data.data.map((transaction: Transaction) => ({
+        bookTitle: transaction.book?.title || 'Unknown Book',
+        dueDate: transaction.dueDate || new Date().toISOString()
+      }));
+      
+      console.log(`Found ${activeItems.length} active borrowings for user ${userId}:`, activeItems);
+      
+      // Update the state
+      setActiveBorrowings(activeItems);
+      
+      // If active borrowings are found, ensure preview is hidden
+      if (activeItems.length > 0) {
+        setShowPreview(false);
+      }
+      
+      return activeItems;
+    } catch (error) {
+      console.error('Error checking active borrowings:', error);
+      setActiveBorrowings([]);
+      return [];
     }
   };
 
@@ -108,10 +278,18 @@ const NoDuePage = () => {
       return;
     }
 
+    // Reset all states at the beginning
     setLoading(true);
+    setDues([]);
+    setActiveBorrowings([]);
+    setShowPreview(false); // Always start with preview hidden
+    setStudent(null);
+    
     try {
       // Get student information by admission number
+      console.log('Fetching student data for admission number:', searchQuery);
       const studentResponse = await studentService.getStudentByAdmissionNumber(searchQuery);
+      console.log('Student response:', studentResponse);
       
       if (!studentResponse.success || !studentResponse.data) {
         throw new Error('Student not found');
@@ -120,15 +298,50 @@ const NoDuePage = () => {
       const foundStudent = studentResponse.data;
       setStudent(foundStudent);
       
-      // Get dues for the student
-      const duesResponse = await studentService.getStudentDues(foundStudent._id);
+      // First, check for active borrowings
+      console.log('Checking for active borrowings for student ID:', foundStudent._id);
+      const activeBorrows = await checkActiveBorrowings(foundStudent._id);
+      console.log('Active borrowings found:', activeBorrows);
       
-      if (duesResponse.success) {
-        setDues(duesResponse.data || []);
+      // Then check for dues
+      console.log('Fetching dues for student ID:', foundStudent._id);
+      const duesResponse = await studentService.getStudentDues(foundStudent._id);
+      console.log('Dues response:', duesResponse);
+      
+      // Get the student dues data
+      const studentDues = duesResponse.success ? duesResponse.data || [] : [];
+      setDues(studentDues);
+      
+      // Only show certificate preview if there are NO dues AND NO active borrowings
+      const hasDues = studentDues.length > 0;
+      const hasBorrowings = activeBorrows.length > 0;
+      
+      console.log('Student eligibility check - Has dues:', hasDues, 'Has borrowings:', hasBorrowings);
+      
+      if (!hasDues && !hasBorrowings) {
+        console.log('Student is eligible for No Due Certificate - No dues and no borrowings');
+        setShowPreview(true);
       } else {
-        throw new Error('Failed to fetch student dues');
+        console.log('Student is NOT eligible for No Due Certificate');
+        setShowPreview(false);
+        
+        // Show appropriate warning message
+        if (hasDues) {
+          toast({
+            title: "Dues Detected",
+            description: `Student has ${studentDues.length} outstanding dues. Cannot issue No Due Certificate.`,
+            variant: "destructive",
+          });
+        } else if (hasBorrowings) {
+          toast({
+            title: "Active Borrowings Detected",
+            description: `Student has ${activeBorrows.length} active borrowings. Cannot issue No Due Certificate.`,
+            variant: "destructive",
+          });
+        }
       }
     } catch (error) {
+      console.error('Error in handleSearch:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to fetch student data",
@@ -136,6 +349,8 @@ const NoDuePage = () => {
       });
       setStudent(null);
       setDues([]);
+      setActiveBorrowings([]);
+      setShowPreview(false); // Ensure preview is hidden on error
     } finally {
       setLoading(false);
     }
@@ -188,6 +403,23 @@ const NoDuePage = () => {
                   Please clear all dues before requesting a No Due Certificate.
                 </p>
               </div>
+            ) : activeBorrowings.length > 0 ? (
+              <div>
+                <h3 className="text-lg font-semibold text-amber-600 mb-4">Active Borrowings</h3>
+                <div className="space-y-2">
+                  {activeBorrowings.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center p-2 bg-amber-50 rounded">
+                      <div>
+                        <p className="font-medium">{item.bookTitle}</p>
+                        <p className="text-sm text-gray-600">Due Date: {format(new Date(item.dueDate), 'PPP')}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-4 text-amber-600 font-medium">
+                  Please return all borrowed books before requesting a No Due Certificate.
+                </p>
+              </div>
             ) : (
               <div>
                 <div className="grid grid-cols-2 gap-4 mb-6">
@@ -211,34 +443,30 @@ const NoDuePage = () => {
 
                 <div className="mt-6 flex gap-3">
                   <Button 
-                    onClick={() => setShowPreview(!showPreview)} 
-                    variant="outline" 
+                    onClick={printCertificate} 
                     className="flex items-center gap-2"
                   >
                     <Printer size={16} />
-                    {showPreview ? 'Hide Preview' : 'Show Preview'}
-                  </Button>
-                  
-                  <Button onClick={downloadCertificate} className="flex items-center gap-2">
-                    <Download size={16} />
-                    Download Certificate
+                    Print Certificate
                   </Button>
                 </div>
 
                 {showPreview && (
                   <div className="mt-4 p-3 bg-blue-50 rounded-md border border-blue-200">
                     <p className="text-sm text-blue-800 mb-2">
-                      <strong>Preview Mode:</strong> Certificate ready for download
+                      <strong>Certificate Preview:</strong> Your No Due Certificate is ready
                     </p>
                     <p className="text-xs text-blue-700">
-                      Click "Download Certificate" to save as PDF
+                      Click the "Print Certificate" button to open the print dialog and get a hardcopy
                     </p>
                   </div>
                 )}
 
-                {/* Certificate Print Wrapper */}
-                <div className="certificate-wrapper" style={{ overflow: 'hidden', height: showPreview ? 'auto' : '0' }}>
-                  {/* Certificate to print */}
+                <div className="certificate-wrapper mt-8 border border-gray-200 rounded-md" style={{ 
+                  overflow: 'hidden', 
+                  height: showPreview ? 'auto' : '0',
+                  display: showPreview ? 'block' : 'none'
+                }}>
                   <div 
                     ref={certificateRef} 
                     className="print-container bg-white" 
@@ -249,8 +477,8 @@ const NoDuePage = () => {
                       padding: '20mm',
                       boxSizing: 'border-box',
                       border: '1px solid #ddd',
-                      visibility: showPreview ? 'visible' : 'hidden',
-                      position: showPreview ? 'relative' : 'absolute',
+                      visibility: 'visible',
+                      position: 'relative',
                     }}
                   >
                     <div className="text-center mb-8">

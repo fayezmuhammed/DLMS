@@ -23,6 +23,7 @@ const AdminLayout = lazy(() => import('@/layouts/AdminLayout'));
 const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
 const ManageBooksPage = lazy(() => import('@/pages/admin/ManageBooksPage'));
 const ManageUsersPage = lazy(() => import('@/pages/admin/ManageUsersPage'));
+const UserDetailPage = lazy(() => import('@/pages/admin/UserDetailPage'));
 const AddBookPage = lazy(() => import('@/pages/admin/AddBookPage'));
 const EditBookPage = lazy(() => import('@/pages/admin/EditBookPage'));
 const IssueBookPage = lazy(() => import('@/pages/admin/IssueBookPage'));
@@ -200,6 +201,7 @@ function App() {
             <Route path="books/add" element={<AddBookPage />} />
             <Route path="books/edit/:id" element={<EditBookPage />} />
             <Route path="users" element={<ManageUsersPage />} />
+            <Route path="users/:userId" element={<UserDetailPage />} />
             <Route path="ebooks" element={<ManageEBooksPage />} />
             <Route path="transactions" element={<TransactionsPageAdmin />} />
             <Route path="transactions/issue" element={<IssueBookPage />} />

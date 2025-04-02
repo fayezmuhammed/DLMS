@@ -75,6 +75,11 @@ export const transactionService = {
     return response.data;
   },
 
+  async getUserTransactionHistory(userId: string) {
+    const response = await api.get(`/transactions/user/${userId}/history`);
+    return response.data;
+  },
+
   async issueBook(params: IssueBookParams) {
     const response = await api.post('/transactions/issue', params);
     return response.data;

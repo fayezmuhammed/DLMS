@@ -24,16 +24,22 @@ const VerifyOtpPage: React.FC = () => {
   const inputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
   
   useEffect(() => {
+    // Debug logging
+    console.log('VerifyOtpPage loaded');
+    console.log('Location state:', location.state);
+    
     // Check if state exists and has email
     if (state?.email) {
+      console.log('Email found in state:', state.email);
       setEmail(state.email);
     } else {
+      console.log('No email found in state, redirecting to login');
       // If no email in state, redirect to login
       navigate('/login', { replace: true });
     }
     
     // Focus on the first input
-    if (inputRefs.current[0]) {
+    if (inputRefs.current && inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
     
@@ -70,7 +76,7 @@ const VerifyOtpPage: React.FC = () => {
       setOtp(newOtp);
       
       // Auto-focus next input if current has a value
-      if (value && index < 5 && inputRefs.current[index + 1]) {
+      if (value && index < 5 && inputRefs.current && inputRefs.current[index + 1]) {
         inputRefs.current[index + 1].focus();
       }
     }
@@ -79,7 +85,7 @@ const VerifyOtpPage: React.FC = () => {
   // Handle key press in OTP inputs
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     // Move focus to previous input on backspace if current is empty
-    if (e.key === 'Backspace' && !otp[index] && index > 0 && inputRefs.current[index - 1]) {
+    if (e.key === 'Backspace' && !otp[index] && index > 0 && inputRefs.current && inputRefs.current[index - 1]) {
       inputRefs.current[index - 1].focus();
     }
   };
@@ -95,7 +101,7 @@ const VerifyOtpPage: React.FC = () => {
       setOtp(newOtp);
       
       // Focus the last input
-      if (inputRefs.current[5]) {
+      if (inputRefs.current && inputRefs.current[5]) {
         inputRefs.current[5].focus();
       }
     }
@@ -169,7 +175,7 @@ const VerifyOtpPage: React.FC = () => {
       setOtp(['', '', '', '', '', '']);
       
       // Focus first input
-      if (inputRefs.current[0]) {
+      if (inputRefs.current && inputRefs.current[0]) {
         inputRefs.current[0].focus();
       }
       

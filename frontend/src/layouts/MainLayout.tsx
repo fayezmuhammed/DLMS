@@ -193,7 +193,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       
       <footer className="bg-indigo-900 text-white py-8 mt-auto">
         <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
               <h3 className="text-lg font-semibold mb-4">Library Management System</h3>
               <p className="text-white/80">
@@ -223,7 +223,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 <p>Phone: (123) 456-7890</p>
               </address>
             </div>
-          </div>
+          </div> */}
           <div className="mt-8 pt-4 border-t border-white/20 text-center text-white/70">
             <p>&copy; {new Date().getFullYear()} Library Management System. All rights reserved.</p>
           </div>

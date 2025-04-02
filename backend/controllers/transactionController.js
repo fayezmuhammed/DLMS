@@ -529,4 +529,67 @@ exports.issueBook = async (req, res) => {
             message: error.message
         });
     }
+};
+
+// @desc    Get a user's active transactions (admin only)
+// @route   GET /api/transactions/user/:userId/active
+// @access  Private/Admin
+exports.getUserActiveTransactions = async (req, res) => {
+    try {
+        // Find the active transactions for the specified user
+        const transactions = await Transaction.find({ 
+            user: req.params.userId,
+            status: { $in: ['borrowed', 'overdue'] }
+        })
+            .populate('book', 'title author ISBN imagePath coverImage')
+            .sort('-createdAt');
+            
+        // Update overdue status
+        const today = new Date();
+        for (let transaction of transactions) {
+            if (transaction.status === 'borrowed' && new Date(transaction.dueDate) < today) {
+                transaction.status = 'overdue';
+                await transaction.save();
+            }
+        }
+
+        res.json({
+            success: true,
+            count: transactions.length,
+            data: transactions
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
+    }
+};
+
+// @desc    Get a user's transaction history (admin only)
+// @route   GET /api/transactions/user/:userId/history
+// @access  Private/Admin
+exports.getUserTransactionHistory = async (req, res) => {
+    try {
+        // Find the returned transactions for the specified user
+        const transactions = await Transaction.find({ 
+            user: req.params.userId,
+            status: 'returned'
+        })
+            .populate('book', 'title author ISBN imagePath coverImage')
+            .sort('-createdAt');
+
+        res.json({
+            success: true,
+            count: transactions.length,
+            data: transactions
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Server Error',
+            error: error.message
+        });
+    }
 }; 

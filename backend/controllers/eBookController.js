@@ -13,6 +13,9 @@ const fileFilter = function(req, file, cb) {
         if (
             file.mimetype === 'application/pdf' || 
             file.mimetype === 'application/epub+zip' ||
+            file.mimetype === 'application/epub' ||
+            file.mimetype === 'application/x-epub' ||
+            file.mimetype === 'application/octet-stream' ||  // Some browsers use this for .epub files
             file.mimetype === 'application/x-mobipocket-ebook' ||
             file.mimetype === 'application/msword' ||
             file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -20,7 +23,7 @@ const fileFilter = function(req, file, cb) {
         ) {
             cb(null, true);
         } else {
-            cb(new Error("Unsupported file format"), false);
+            cb(new Error("Unsupported file format: " + file.mimetype), false);
         }
     } else if (file.fieldname === 'coverImage') {
         if (file.mimetype.startsWith('image/')) {
@@ -40,6 +43,36 @@ const upload = multer({
         fileSize: 100 * 1024 * 1024 // 100MB limit
     }
 });
+
+// Helper function to determine file type from extension and mimetype
+const getFileType = (filename, mimetype) => {
+    const fileExtension = path.extname(filename).toLowerCase().replace('.', '');
+    
+    // If the extension is clearly an ebook format, use it
+    if (['pdf', 'epub', 'mobi', 'doc', 'docx', 'txt'].includes(fileExtension)) {
+        return fileExtension;
+    }
+    
+    // Otherwise try to determine from mimetype
+    if (mimetype === 'application/pdf') return 'pdf';
+    if (mimetype === 'application/epub+zip' || 
+        mimetype === 'application/epub' || 
+        mimetype === 'application/x-epub') return 'epub';
+    if (mimetype === 'application/x-mobipocket-ebook') return 'mobi';
+    if (mimetype === 'application/msword') return 'doc';
+    if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
+    if (mimetype === 'text/plain') return 'txt';
+    
+    // If application/octet-stream, try to guess from the original extension
+    if (mimetype === 'application/octet-stream') {
+        // Check the original filename for a known extension
+        const extMatch = filename.match(/\.(pdf|epub|mobi|doc|docx|txt)$/i);
+        if (extMatch) return extMatch[1].toLowerCase();
+    }
+    
+    // Default to pdf if we can't determine
+    return 'pdf';
+};
 
 // Get all e-books
 exports.getEBooks = async (req, res) => {
@@ -116,9 +149,10 @@ exports.createEBook = async (req, res) => {
                 bookData.fileSize = ebookFile.size;
                 bookData.filePublicId = ebookResult.public_id;
                 
-                // Determine file type from extension
-                const fileExtension = path.extname(ebookFile.originalname).toLowerCase().replace('.', '');
-                bookData.fileType = fileExtension;
+                // Determine file type from extension and mimetype
+                bookData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
+                
+                console.log(`[SERVER] File upload - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}`);
             }
             
             if (req.files.coverImage && req.files.coverImage[0]) {
@@ -183,9 +217,10 @@ exports.updateEBook = async (req, res) => {
                 bookData.fileSize = ebookFile.size;
                 bookData.filePublicId = ebookResult.public_id;
                 
-                // Determine file type from extension
-                const fileExtension = path.extname(ebookFile.originalname).toLowerCase().replace('.', '');
-                bookData.fileType = fileExtension;
+                // Determine file type from extension and mimetype
+                bookData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
+                
+                console.log(`[SERVER] File update - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}`);
             }
             
             if (req.files.coverImage && req.files.coverImage[0]) {
@@ -350,41 +385,79 @@ exports.viewEBook = async (req, res) => {
             }
         }
         
-        const filePath = path.join(__dirname, '..', 'public', ebook.fileUrl);
-        
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({
+        // Check if file type is supported for in-browser viewing
+        if (ebook.fileType !== 'pdf' && ebook.fileType !== 'epub') {
+            return res.status(400).json({
                 success: false,
-                message: 'E-Book file not found'
+                message: 'This file format does not support in-browser preview'
             });
         }
         
-        // Stream the file instead of downloading it
-        const stat = fs.statSync(filePath);
-        const fileSize = stat.size;
-        const range = req.headers.range;
-        
-        if (range) {
-            const parts = range.replace(/bytes=/, "").split("-");
-            const start = parseInt(parts[0], 10);
-            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
-            const chunksize = (end - start) + 1;
-            const file = fs.createReadStream(filePath, {start, end});
-            const head = {
-                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-                'Accept-Ranges': 'bytes',
-                'Content-Length': chunksize,
-                'Content-Type': 'application/pdf',
-            };
-            res.writeHead(206, head);
-            file.pipe(res);
+        // Check if fileUrl is a Cloudinary URL
+        if (ebook.fileUrl.startsWith('http')) {
+            // If it's a Cloudinary URL, fetch it and stream it to the client
+            const https = require('https');
+            const http = require('http');
+            
+            // Choose http or https module based on URL
+            const requester = ebook.fileUrl.startsWith('https') ? https : http;
+            
+            // Set appropriate content type
+            const contentType = ebook.fileType === 'pdf' ? 'application/pdf' : 'application/epub+zip';
+            
+            // Make a request to the Cloudinary URL
+            requester.get(ebook.fileUrl, (response) => {
+                // Set headers for inline display
+                res.setHeader('Content-Type', contentType);
+                res.setHeader('Content-Disposition', 'inline');
+                
+                // Pipe the response from Cloudinary to our response
+                response.pipe(res);
+            }).on('error', (err) => {
+                console.error('Error fetching file from Cloudinary:', err);
+                return res.status(500).json({
+                    success: false,
+                    message: 'Error streaming file from storage'
+                });
+            });
         } else {
-            const head = {
-                'Content-Length': fileSize,
-                'Content-Type': 'application/pdf',
-            };
-            res.writeHead(200, head);
-            fs.createReadStream(filePath).pipe(res);
+            // Handle as local file (existing code)
+            const filePath = path.join(__dirname, '..', 'public', ebook.fileUrl);
+            
+            if (!fs.existsSync(filePath)) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'E-Book file not found'
+                });
+            }
+            
+            // Stream the file instead of downloading it
+            const stat = fs.statSync(filePath);
+            const fileSize = stat.size;
+            const range = req.headers.range;
+            
+            if (range) {
+                const parts = range.replace(/bytes=/, "").split("-");
+                const start = parseInt(parts[0], 10);
+                const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+                const chunksize = (end - start) + 1;
+                const file = fs.createReadStream(filePath, {start, end});
+                const head = {
+                    'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                    'Accept-Ranges': 'bytes',
+                    'Content-Length': chunksize,
+                    'Content-Type': ebook.fileType === 'pdf' ? 'application/pdf' : 'application/epub+zip',
+                };
+                res.writeHead(206, head);
+                file.pipe(res);
+            } else {
+                const head = {
+                    'Content-Length': fileSize,
+                    'Content-Type': ebook.fileType === 'pdf' ? 'application/pdf' : 'application/epub+zip',
+                };
+                res.writeHead(200, head);
+                fs.createReadStream(filePath).pipe(res);
+            }
         }
     } catch (error) {
         res.status(500).json({

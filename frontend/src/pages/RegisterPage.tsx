@@ -58,31 +58,16 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
       // Make API call to backend for registration
       const response = await api.post('/auth/register', registerData);
       
-      if (response.data?.success && response.data?.data) {
-        const userData = response.data.data;
-        
-        // Store token in localStorage
-        if (userData.token) {
-          localStorage.setItem('token', userData.token);
-        }
-        
-        // Create a user object without the token to avoid security risks
-        const userForStorage = { ...userData };
-        delete userForStorage.token;
-        
-        // Call onRegister with user data for state update if provided
-        if (onRegister) {
-          onRegister(userForStorage);
-        }
+      if (response.data?.success) {
+        // Only store email for verification, don't store token or user data yet
+        // Redirect to verify OTP page after successful registration
+        navigate('/verify-otp', { 
+          state: { 
+            email: formData.email, 
+            message: 'Registration successful! Please verify your email with the OTP sent to your inbox.' 
+          } 
+        });
       }
-
-      // Redirect to verify OTP page after successful registration
-      navigate('/verify-otp', { 
-        state: { 
-          email: formData.email, 
-          message: 'Registration successful! Please verify your email with the OTP sent to your inbox.' 
-        } 
-      });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
     } finally {

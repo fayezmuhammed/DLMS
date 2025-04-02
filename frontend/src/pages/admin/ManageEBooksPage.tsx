@@ -120,10 +120,10 @@ const ManageEBooksPage: React.FC = () => {
     e.preventDefault();
     
     // Validate form
-    if (!newEBook.title || !newEBook.author || !newEBook.isbn || !newEBook.category) {
+    if (!newEBook.title || !newEBook.author) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (Title, Author, ISBN, Category)",
+        description: "Please fill in all required fields (Title, Author)",
         variant: "destructive",
       });
       return;
@@ -132,7 +132,7 @@ const ManageEBooksPage: React.FC = () => {
     if (!ebookFile) {
       toast({
         title: "Validation Error",
-        description: "Please upload an e-book file",
+        description: "Please select an e-book file to upload",
         variant: "destructive",
       });
       return;
@@ -145,17 +145,21 @@ const ManageEBooksPage: React.FC = () => {
       const formData = new FormData();
       formData.append('title', newEBook.title);
       formData.append('author', newEBook.author);
-      formData.append('isbn', newEBook.isbn);
-      formData.append('category', newEBook.category);
-      formData.append('publisher', newEBook.publisher);
-      formData.append('edition', newEBook.edition);
-      formData.append('description', newEBook.description);
+      
+      // Optional fields
+      if (newEBook.isbn) formData.append('isbn', newEBook.isbn);
+      if (newEBook.category) formData.append('category', newEBook.category);
+      if (newEBook.publisher) formData.append('publisher', newEBook.publisher);
+      if (newEBook.edition) formData.append('edition', newEBook.edition);
+      if (newEBook.description) formData.append('description', newEBook.description);
+      
+      // Other fields
       formData.append('status', newEBook.status);
       formData.append('accessRestriction', newEBook.accessRestriction);
       formData.append('downloadable', String(newEBook.downloadable));
       
       if (newEBook.pages) {
-        formData.append('pages', newEBook.pages);
+        formData.append('pages', newEBook.pages.toString());
       }
       
       // Append files
@@ -252,10 +256,10 @@ const ManageEBooksPage: React.FC = () => {
     if (!editingEBook) return;
 
     // Validate form
-    if (!editingEBook.title || !editingEBook.author || !editingEBook.isbn || !editingEBook.category) {
+    if (!editingEBook.title || !editingEBook.author) {
       toast({
         title: "Validation Error",
-        description: "Please fill in all required fields (Title, Author, ISBN, Category)",
+        description: "Please fill in all required fields (Title, Author)",
         variant: "destructive",
       });
       return;
@@ -268,8 +272,18 @@ const ManageEBooksPage: React.FC = () => {
       const formData = new FormData();
       formData.append('title', editingEBook.title);
       formData.append('author', editingEBook.author);
-      formData.append('isbn', editingEBook.isbn);
-      formData.append('category', typeof editingEBook.category === 'object' ? editingEBook.category._id : editingEBook.category);
+      
+      // Optional fields
+      if (editingEBook.isbn) formData.append('isbn', editingEBook.isbn);
+      
+      // Handle category which could be an object or string
+      if (editingEBook.category) {
+        formData.append('category', typeof editingEBook.category === 'object' 
+          ? editingEBook.category._id 
+          : editingEBook.category);
+      }
+      
+      // Other fields
       formData.append('publisher', editingEBook.publisher || '');
       formData.append('edition', editingEBook.edition || '');
       formData.append('description', editingEBook.description || '');
@@ -422,19 +436,18 @@ const ManageEBooksPage: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="isbn">ISBN*</Label>
+                    <Label htmlFor="isbn">ISBN</Label>
                     <Input 
                       id="isbn" 
                       name="isbn"
                       placeholder="ISBN number" 
                       value={newEBook.isbn}
                       onChange={handleInputChange}
-                      required
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="category">Category*</Label>
+                    <Label htmlFor="category">Category</Label>
                     <Select
                       value={newEBook.category}
                       onValueChange={(value) => handleSelectChange('category', value)}
@@ -543,10 +556,13 @@ const ManageEBooksPage: React.FC = () => {
                     <Input 
                       id="ebook-file" 
                       type="file"
-                      accept=".pdf,.epub,.mobi,.doc,.docx,.txt"
+                      accept=".pdf,.epub,.EPUB,.mobi,.doc,.docx,.txt"
                       onChange={handleEbookFileChange}
                       required
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Supported formats: PDF, EPUB, MOBI, DOC, DOCX, TXT
+                    </p>
                     {ebookFile && (
                       <p className="text-xs text-muted-foreground">
                         Selected: {ebookFile.name} ({(ebookFile.size / 1024 / 1024).toFixed(2)} MB)
@@ -628,7 +644,35 @@ const ManageEBooksPage: React.FC = () => {
               <tbody>
                 {filteredEbooks.length > 0 ? (
                   filteredEbooks.map(ebook => (
-                    <tr key={ebook._id} className="border-b hover:bg-muted/50">
+                    <tr 
+                      key={ebook._id} 
+                      className="border-b hover:bg-muted/50 cursor-pointer"
+                      onClick={async () => {
+                        try {
+                          const response = await ebookService.getEBook(ebook._id);
+                          if (response && response.success) {
+                            // Handle different response structures
+                            const ebookData = response.data || response.ebook;
+                            if (ebookData) {
+                              setEditingEBook(ebookData);
+                              setEditCoverImagePreview(ebookData.coverImage || ebookData.image || '');
+                              setIsEditDialogOpen(true);
+                            } else {
+                              throw new Error('Invalid response structure');
+                            }
+                          } else {
+                            throw new Error('Failed to fetch e-book data');
+                          }
+                        } catch (error) {
+                          console.error('Error fetching e-book details:', error);
+                          toast({
+                            title: "Error",
+                            description: "Failed to fetch e-book details",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    >
                       <td className="py-3 px-4">{ebook.title}</td>
                       <td className="py-3 px-4">{ebook.author}</td>
                       <td className="py-3 px-4">{ebook.fileType.toUpperCase()}</td>
@@ -759,19 +803,18 @@ const ManageEBooksPage: React.FC = () => {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="edit-isbn">ISBN*</Label>
+                    <Label htmlFor="edit-isbn">ISBN</Label>
                     <Input 
                       id="edit-isbn" 
                       name="isbn"
                       placeholder="ISBN number" 
                       value={editingEBook.isbn}
                       onChange={handleEditInputChange}
-                      required
                     />
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="edit-category">Category*</Label>
+                    <Label htmlFor="edit-category">Category</Label>
                     <Select
                       value={typeof editingEBook.category === 'object' ? editingEBook.category._id : editingEBook.category}
                       onValueChange={(value) => handleEditSelectChange('category', value)}
@@ -880,9 +923,12 @@ const ManageEBooksPage: React.FC = () => {
                     <Input 
                       id="edit-ebook-file" 
                       type="file"
-                      accept=".pdf,.epub,.mobi,.doc,.docx,.txt"
+                      accept=".pdf,.epub,.EPUB,.mobi,.doc,.docx,.txt"
                       onChange={handleEditEbookFileChange}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Supported formats: PDF, EPUB, MOBI, DOC, DOCX, TXT
+                    </p>
                     {editEbookFile && (
                       <p className="text-xs text-muted-foreground">
                         Selected: {editEbookFile.name} ({(editEbookFile.size / 1024 / 1024).toFixed(2)} MB)
