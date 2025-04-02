@@ -35,6 +35,7 @@ const userRoutes = require('./routes/userRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const settingsRoutes = require('./routes/settingsRoutes');
+const wishlistRoutes = require('./routes/wishlistRoutes');
 
 // Mount routes
 app.use('/api/auth', authRoutes);
@@ -46,6 +47,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/wishlist', wishlistRoutes);
 
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, 'public')));

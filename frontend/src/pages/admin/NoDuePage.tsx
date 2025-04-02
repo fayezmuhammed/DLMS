@@ -232,12 +232,22 @@ const NoDuePage = () => {
       // Use the correct API endpoint for user active transactions
       const response = await api.get(`/transactions/user/${userId}/active`);
       
-      if (!response.data || !response.data.success) {
+      if (!response || !response.data) {
+        console.error('Empty response when fetching borrowings');
+        return [];
+      }
+      
+      if (!response.data.success) {
         console.error('Failed to fetch borrowings:', response.data);
         return [];
       }
       
       console.log('All transactions returned from API:', response.data.data);
+      
+      if (!response.data.data) {
+        console.error('No data returned from API');
+        return [];
+      }
       
       if (!Array.isArray(response.data.data)) {
         console.error('API did not return array of transactions:', response.data.data);
@@ -245,10 +255,21 @@ const NoDuePage = () => {
       }
       
       // All transactions returned from this endpoint should be active borrowings
-      const activeItems = response.data.data.map((transaction: Transaction) => ({
-        bookTitle: transaction.book?.title || 'Unknown Book',
-        dueDate: transaction.dueDate || new Date().toISOString()
-      }));
+      const activeItems = response.data.data.map((transaction: Transaction) => {
+        // Safely access nested properties
+        const bookTitle = transaction && transaction.book && transaction.book.title 
+          ? transaction.book.title 
+          : 'Unknown Book';
+        
+        const dueDate = transaction && transaction.dueDate 
+          ? transaction.dueDate 
+          : new Date().toISOString();
+          
+        return {
+          bookTitle,
+          dueDate
+        };
+      });
       
       console.log(`Found ${activeItems.length} active borrowings for user ${userId}:`, activeItems);
       
@@ -356,6 +377,16 @@ const NoDuePage = () => {
     }
   };
 
+  // Add this function to safely render dates with error handling
+  const safeFormatDate = (dateStr: string) => {
+    try {
+      return format(new Date(dateStr), 'PPP');
+    } catch (error) {
+      console.error('Error formatting date:', dateStr, error);
+      return 'Invalid date';
+    }
+  };
+
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">No Due Certificate</h1>
@@ -411,7 +442,7 @@ const NoDuePage = () => {
                     <div key={index} className="flex justify-between items-center p-2 bg-amber-50 rounded">
                       <div>
                         <p className="font-medium">{item.bookTitle}</p>
-                        <p className="text-sm text-gray-600">Due Date: {format(new Date(item.dueDate), 'PPP')}</p>
+                        <p className="text-sm text-gray-600">Due Date: {safeFormatDate(item.dueDate)}</p>
                       </div>
                     </div>
                   ))}

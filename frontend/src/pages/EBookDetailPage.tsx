@@ -347,6 +347,14 @@ const EBookDetailPage: React.FC = () => {
                       src={`${ebookService.getViewUrl(ebook._id)}#toolbar=0&navpanes=0`}
                       title={`Preview of ${ebook.title}`}
                       className="w-full h-full"
+                      onError={(e) => {
+                        console.error('Error loading PDF preview:', e);
+                        toast({
+                          title: "Preview Error",
+                          description: "Failed to load PDF preview. The file may be missing or inaccessible.",
+                          variant: "destructive"
+                        });
+                      }}
                     />
                   ) : (
                     <iframe 
@@ -354,6 +362,14 @@ const EBookDetailPage: React.FC = () => {
                       title={`Preview of ${ebook.title}`}
                       className="w-full h-[800px]" 
                       sandbox="allow-same-origin allow-scripts"
+                      onError={(e) => {
+                        console.error('Error loading EPUB preview:', e);
+                        toast({
+                          title: "Preview Error",
+                          description: "Failed to load EPUB preview. The file may be missing or inaccessible.",
+                          variant: "destructive"
+                        });
+                      }}
                     />
                   )}
                 </div>

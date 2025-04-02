@@ -107,8 +107,18 @@ export const ebookService = {
   // Generate a view URL for the e-book (especially for PDFs)
   getViewUrl(id: string) {
     // Include the token in the URL for authentication when using in iframes or new windows
-    const token = localStorage.getItem('token');
-    const timestamp = new Date().getTime(); // Add timestamp to prevent caching
-    return `${api.defaults.baseURL}/ebooks/${id}/view${token ? `?token=${token}&t=${timestamp}` : `?t=${timestamp}`}`;
+    try {
+      if (!id) {
+        console.error('Invalid ebook ID provided to getViewUrl');
+        return '#';
+      }
+      
+      const token = localStorage.getItem('token');
+      const timestamp = new Date().getTime(); // Add timestamp to prevent caching
+      return `${api.defaults.baseURL}/ebooks/${id}/view${token ? `?token=${token}&t=${timestamp}` : `?t=${timestamp}`}`;
+    } catch (error) {
+      console.error('Error generating view URL:', error);
+      return '#'; // Return a non-functional URL on error
+    }
   }
 }; 

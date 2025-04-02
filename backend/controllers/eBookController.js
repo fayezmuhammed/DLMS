@@ -4,8 +4,42 @@ const path = require('path');
 const multer = require('multer');
 const cloudinaryService = require('../services/cloudinaryService');
 
-// Configure multer to store files in memory
-const storage = multer.memoryStorage();
+// Configure multer to store files on disk
+const storage = multer.diskStorage({
+    destination: function(req, file, cb) {
+        // Create directories if they don't exist
+        const publicPath = path.join(__dirname, '..', 'public');
+        const ebooksPath = path.join(publicPath, 'ebooks');
+        const coversPath = path.join(publicPath, 'covers');
+        
+        if (!fs.existsSync(publicPath)) {
+            fs.mkdirSync(publicPath);
+        }
+        
+        if (!fs.existsSync(ebooksPath)) {
+            fs.mkdirSync(ebooksPath);
+        }
+        
+        if (!fs.existsSync(coversPath)) {
+            fs.mkdirSync(coversPath);
+        }
+        
+        // Set the destination based on file type
+        if (file.fieldname === 'ebook') {
+            cb(null, path.join(publicPath, 'ebooks'));
+        } else if (file.fieldname === 'coverImage') {
+            cb(null, path.join(publicPath, 'covers'));
+        } else {
+            cb(new Error('Unexpected field'));
+        }
+    },
+    filename: function(req, file, cb) {
+        // Generate a unique filename
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    }
+});
 
 // Filter allowed file types
 const fileFilter = function(req, file, cb) {
@@ -36,6 +70,7 @@ const fileFilter = function(req, file, cb) {
     }
 };
 
+// Update the upload middleware to use disk storage
 const upload = multer({ 
     storage,
     fileFilter,
@@ -134,38 +169,28 @@ exports.createEBook = async (req, res) => {
     try {
         const bookData = { ...req.body };
         
-        // Handle file uploads to Cloudinary
+        // Handle local file storage
         if (req.files) {
             if (req.files.ebook && req.files.ebook[0]) {
                 const ebookFile = req.files.ebook[0];
                 
-                // Upload e-book to Cloudinary
-                const ebookResult = await cloudinaryService.uploadEBook(
-                    ebookFile.buffer,
-                    ebookFile.originalname
-                );
-                
-                bookData.fileUrl = ebookResult.secure_url;
+                // Set relative path for the file URL
+                bookData.fileUrl = `ebooks/${ebookFile.filename}`;
                 bookData.fileSize = ebookFile.size;
-                bookData.filePublicId = ebookResult.public_id;
                 
                 // Determine file type from extension and mimetype
                 bookData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
                 
-                console.log(`[SERVER] File upload - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}`);
+                console.log(`[SERVER] File upload - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}, Path: ${bookData.fileUrl}`);
             }
             
             if (req.files.coverImage && req.files.coverImage[0]) {
                 const coverFile = req.files.coverImage[0];
                 
-                // Upload cover image to Cloudinary
-                const coverResult = await cloudinaryService.uploadBookCover(
-                    coverFile.buffer,
-                    coverFile.originalname
-                );
+                // Set relative path for the cover image
+                bookData.coverImage = `covers/${coverFile.filename}`;
                 
-                bookData.coverImage = coverResult.secure_url;
-                bookData.coverImagePublicId = coverResult.public_id;
+                console.log(`[SERVER] Cover upload - Name: ${coverFile.originalname}, Path: ${bookData.coverImage}`);
             }
         }
         
@@ -197,48 +222,44 @@ exports.updateEBook = async (req, res) => {
         
         const bookData = { ...req.body };
         
-        // Handle file uploads to Cloudinary
+        // Handle local file storage
         if (req.files) {
             if (req.files.ebook && req.files.ebook[0]) {
                 const ebookFile = req.files.ebook[0];
                 
-                // Delete old e-book from Cloudinary if it exists
-                if (ebook.filePublicId) {
-                    await cloudinaryService.deleteFile(ebook.filePublicId, 'raw');
+                // Delete old e-book file if it exists
+                if (ebook.fileUrl && !ebook.fileUrl.startsWith('http')) {
+                    const oldFilePath = path.join(__dirname, '..', 'public', ebook.fileUrl);
+                    if (fs.existsSync(oldFilePath)) {
+                        fs.unlinkSync(oldFilePath);
+                    }
                 }
                 
-                // Upload new e-book to Cloudinary
-                const ebookResult = await cloudinaryService.uploadEBook(
-                    ebookFile.buffer,
-                    ebookFile.originalname
-                );
-                
-                bookData.fileUrl = ebookResult.secure_url;
+                // Set relative path for the new file
+                bookData.fileUrl = `ebooks/${ebookFile.filename}`;
                 bookData.fileSize = ebookFile.size;
-                bookData.filePublicId = ebookResult.public_id;
                 
                 // Determine file type from extension and mimetype
                 bookData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
                 
-                console.log(`[SERVER] File update - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}`);
+                console.log(`[SERVER] File update - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}, Path: ${bookData.fileUrl}`);
             }
             
             if (req.files.coverImage && req.files.coverImage[0]) {
                 const coverFile = req.files.coverImage[0];
                 
-                // Delete old cover image from Cloudinary if it exists
-                if (ebook.coverImagePublicId) {
-                    await cloudinaryService.deleteFile(ebook.coverImagePublicId);
+                // Delete old cover image if it exists
+                if (ebook.coverImage && !ebook.coverImage.startsWith('http')) {
+                    const oldCoverPath = path.join(__dirname, '..', 'public', ebook.coverImage);
+                    if (fs.existsSync(oldCoverPath)) {
+                        fs.unlinkSync(oldCoverPath);
+                    }
                 }
                 
-                // Upload new cover image to Cloudinary
-                const coverResult = await cloudinaryService.uploadBookCover(
-                    coverFile.buffer,
-                    coverFile.originalname
-                );
+                // Set relative path for the new cover image
+                bookData.coverImage = `covers/${coverFile.filename}`;
                 
-                bookData.coverImage = coverResult.secure_url;
-                bookData.coverImagePublicId = coverResult.public_id;
+                console.log(`[SERVER] Cover update - Name: ${coverFile.originalname}, Path: ${bookData.coverImage}`);
             }
         }
         
@@ -271,17 +292,40 @@ exports.deleteEBook = async (req, res) => {
             });
         }
         
-        // Delete files from Cloudinary
+        // Delete local files
+        if (ebook.fileUrl && !ebook.fileUrl.startsWith('http')) {
+            const filePath = path.join(__dirname, '..', 'public', ebook.fileUrl);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
+            }
+        }
+        
+        if (ebook.coverImage && !ebook.coverImage.startsWith('http')) {
+            const coverPath = path.join(__dirname, '..', 'public', ebook.coverImage);
+            if (fs.existsSync(coverPath)) {
+                fs.unlinkSync(coverPath);
+            }
+        }
+        
+        // Delete Cloudinary files if they exist (for backward compatibility)
         if (ebook.filePublicId) {
-            await cloudinaryService.deleteFile(ebook.filePublicId, 'raw');
+            try {
+                await cloudinaryService.deleteFile(ebook.filePublicId, 'raw');
+            } catch (cloudinaryError) {
+                console.error('Error deleting file from Cloudinary:', cloudinaryError);
+            }
         }
         
         if (ebook.coverImagePublicId) {
-            await cloudinaryService.deleteFile(ebook.coverImagePublicId);
+            try {
+                await cloudinaryService.deleteFile(ebook.coverImagePublicId);
+            } catch (cloudinaryError) {
+                console.error('Error deleting cover from Cloudinary:', cloudinaryError);
+            }
         }
         
         // Delete e-book from database
-        await ebook.remove();
+        await ebook.deleteOne();
         
         res.status(200).json({
             success: true,
@@ -393,11 +437,13 @@ exports.viewEBook = async (req, res) => {
             });
         }
         
-        // Check if fileUrl is a Cloudinary URL
-        if (ebook.fileUrl.startsWith('http')) {
-            // If it's a Cloudinary URL, fetch it and stream it to the client
+        // Handle URLs - prefer local files but support Cloudinary URLs for backward compatibility
+        if (ebook.fileUrl && ebook.fileUrl.startsWith('http')) {
+            // Handle Cloudinary URLs (keeping existing code)
             const https = require('https');
             const http = require('http');
+            
+            console.log('Streaming e-book from Cloudinary URL:', ebook.fileUrl);
             
             // Choose http or https module based on URL
             const requester = ebook.fileUrl.startsWith('https') ? https : http;
@@ -407,6 +453,14 @@ exports.viewEBook = async (req, res) => {
             
             // Make a request to the Cloudinary URL
             requester.get(ebook.fileUrl, (response) => {
+                // Check if the remote file was found
+                if (response.statusCode === 404) {
+                    return res.status(404).json({
+                        success: false,
+                        message: 'E-Book file not found on storage server'
+                    });
+                }
+                
                 // Set headers for inline display
                 res.setHeader('Content-Type', contentType);
                 res.setHeader('Content-Disposition', 'inline');
@@ -420,14 +474,17 @@ exports.viewEBook = async (req, res) => {
                     message: 'Error streaming file from storage'
                 });
             });
-        } else {
-            // Handle as local file (existing code)
+        } else if (ebook.fileUrl) {
+            // Handle local file
             const filePath = path.join(__dirname, '..', 'public', ebook.fileUrl);
             
+            console.log('Checking for local file at:', filePath);
+            
             if (!fs.existsSync(filePath)) {
+                console.error('Local file not found at path:', filePath);
                 return res.status(404).json({
                     success: false,
-                    message: 'E-Book file not found'
+                    message: 'E-Book file not found on server'
                 });
             }
             
@@ -458,8 +515,16 @@ exports.viewEBook = async (req, res) => {
                 res.writeHead(200, head);
                 fs.createReadStream(filePath).pipe(res);
             }
+        } else {
+            // No file URL available
+            console.error('E-book has no fileUrl:', ebook);
+            return res.status(404).json({
+                success: false,
+                message: 'E-Book file URL not found in database'
+            });
         }
     } catch (error) {
+        console.error('Error in viewEBook:', error);
         res.status(500).json({
             success: false,
             message: 'Server Error',

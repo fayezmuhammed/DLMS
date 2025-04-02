@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { Book, bookService } from '@/services/bookService';
 import { transactionService } from '@/services/transactionService';
+import { WishlistItem, wishlistService } from '@/services/wishlistService';
 
 // Interface for User type
 interface User {
@@ -139,7 +140,7 @@ const BookDetailPage: React.FC = () => {
     }
   };
 
-  const handleAddToWishlist = () => {
+  const handleAddToWishlist = async () => {
     if (!user) {
       toast({
         title: "Authentication required",
@@ -150,16 +151,35 @@ const BookDetailPage: React.FC = () => {
       return;
     }
 
+    if (!book) return;
+
     setAddingToWishlist(true);
     
-    // Simulate adding to wishlist (implement actual API call when backend supports it)
-    setTimeout(() => {
+    try {
+      const response = await wishlistService.addToWishlist(book._id);
+      
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: response.message || "Book added to your wishlist",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: response.message || "Failed to add book to wishlist",
+          variant: "destructive"
+        });
+      }
+    } catch (err: any) {
+      console.error('Error adding to wishlist:', err);
       toast({
-        title: "Success",
-        description: "Book added to your wishlist",
+        title: "Error",
+        description: err.response?.data?.message || "Failed to add book to wishlist. Please try again later.",
+        variant: "destructive"
       });
+    } finally {
       setAddingToWishlist(false);
-    }, 1000);
+    }
   };
 
   if (loading) {
