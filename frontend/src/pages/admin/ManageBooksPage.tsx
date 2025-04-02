@@ -7,9 +7,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/components/ui/use-toast";
-import { Book, bookService, ImportResult } from '@/services/bookService';
+import { Book, bookService } from '@/services/bookService';
 import { Category } from '@/services/bookService';
-import { Plus, Upload } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 // Helper function to safely render any value
 const safeRender = (value: any): string => {
@@ -49,13 +49,6 @@ export default function ManageBooksPage() {
   const [editCoverImageFile, setEditCoverImageFile] = useState<File | null>(null);
   const [editCoverImagePreview, setEditCoverImagePreview] = useState<string>('');
 
-  // Add import dialog state
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importCategory, setImportCategory] = useState<string>('');
-  const [importResult, setImportResult] = useState<ImportResult | null>(null);
-  const [importLoading, setImportLoading] = useState(false);
-
   const navigate = useNavigate();
 
   // Fetch books and categories on component mount
@@ -90,73 +83,6 @@ export default function ManageBooksPage() {
         description: "Failed to fetch categories",
         variant: "destructive",
       });
-    }
-  };
-
-  // Handle import file change
-  const handleImportFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setImportFile(e.target.files[0]);
-    }
-  };
-
-  // Handle bulk import submission
-  const handleBulkImport = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!importFile) {
-      toast({
-        title: "Error",
-        description: "Please select an Excel file to import",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!importCategory) {
-      toast({
-        title: "Error",
-        description: "Please select a default category for imported books",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setImportLoading(true);
-      
-      const formData = new FormData();
-      formData.append('excelFile', importFile);
-      formData.append('category', importCategory);
-      
-      const response = await bookService.bulkImportBooks(formData);
-      
-      setImportResult(response.results);
-      
-      toast({
-        title: "Import Complete",
-        description: `Processed ${response.results.total} books: ${response.results.successful} imported, ${response.results.failed} failed`,
-        variant: response.results.failed > 0 ? "destructive" : "default",
-      });
-      
-      if (response.results.successful > 0) {
-        fetchBooks(); // Refresh books list
-      }
-      
-      if (response.results.failed === 0) {
-        setIsImportDialogOpen(false);
-        setImportFile(null);
-        setImportCategory('');
-        setImportResult(null);
-      }
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to import books. Please check your Excel file format.",
-        variant: "destructive",
-      });
-    } finally {
-      setImportLoading(false);
     }
   };
 
@@ -366,14 +292,6 @@ export default function ManageBooksPage() {
             <Plus className="h-4 w-4" />
             <span>Add New Book</span>
           </Button>
-          <Button 
-            onClick={() => setIsImportDialogOpen(true)}
-            variant="outline"
-            className="flex items-center space-x-1"
-          >
-            <Upload className="h-4 w-4" />
-            <span>Import Books</span>
-          </Button>
         </div>
       </div>
       
@@ -386,82 +304,6 @@ export default function ManageBooksPage() {
         />
       </div>
       
-      {/* Import Books Dialog */}
-      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Import Books from Excel</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleBulkImport}>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-start gap-4">
-                <Label htmlFor="excelFile" className="text-right pt-2">Excel File</Label>
-                <div className="col-span-3">
-                  <Input 
-                    id="excelFile" 
-                    type="file"
-                    accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-                    onChange={handleImportFileChange}
-                    className="col-span-3" 
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Excel file should include columns: Bookno, title, author, Price, ISBN, cover image link
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="importCategory" className="text-right">Default Category</Label>
-                <Select 
-                  value={importCategory} 
-                  onValueChange={setImportCategory}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category._id} value={category._id}>
-                        {category.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              {importResult && importResult.failed > 0 && (
-                <div className="col-span-4 mt-2">
-                  <p className="text-sm font-medium text-red-500">Import Errors:</p>
-                  <div className="max-h-40 overflow-y-auto mt-1 p-2 border rounded text-xs">
-                    {importResult.errors.map((error, idx) => (
-                      <div key={idx} className="mb-1 pb-1 border-b border-gray-100">
-                        <p><strong>Error:</strong> {error.error}</p>
-                        <p><strong>Book:</strong> {error.book.title || error.book.Title || JSON.stringify(error.book)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="secondary" 
-                onClick={() => setIsImportDialogOpen(false)}
-                disabled={importLoading}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
-                disabled={!importFile || !importCategory || importLoading}
-              >
-                {importLoading ? 'Importing...' : 'Import Books'}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
       {/* Add Book Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent>
@@ -607,7 +449,6 @@ export default function ManageBooksPage() {
                   <th className="py-3 px-4 text-left">Category</th>
                   <th className="py-3 px-4 text-left">Status</th>
                   <th className="py-3 px-4 text-center">Copies</th>
-                  <th className="py-3 px-4 text-left">Added On</th>
                   <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
@@ -633,7 +474,6 @@ export default function ManageBooksPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-center">{book.copies}</td>
-                      <td className="py-3 px-4">{book.addedOn}</td>
                       <td className="py-3 px-4">
                         <div className="flex justify-center gap-2">
                           <Button 
@@ -664,7 +504,7 @@ export default function ManageBooksPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={9} className="py-6 text-center text-muted-foreground">
+                    <td colSpan={8} className="py-6 text-center text-muted-foreground">
                       No books found. Try adjusting your search.
                     </td>
                   </tr>

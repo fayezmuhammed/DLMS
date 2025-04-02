@@ -288,33 +288,33 @@ const ManageUsersPage: React.FC = () => {
 
       <Card>
         <CardContent className="p-0">
-          <div className="relative w-full overflow-auto">
-            <table className="w-full caption-bottom text-sm">
-              <thead className="[&_tr]:border-b">
-                <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
-                  <th className="h-12 px-4 text-left align-middle font-medium">Name</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Email</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Role</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Admission No.</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Batch</th>
-                  <th className="h-12 px-4 text-left align-middle font-medium">Joined On</th>
-                  <th className="h-12 px-4 text-center align-middle font-medium">Actions</th>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="py-3 px-4 text-left">Name</th>
+                  <th className="py-3 px-4 text-left">Email</th>
+                  <th className="py-3 px-4 text-left">Role</th>
+                  <th className="py-3 px-4 text-left">Admission No.</th>
+                  <th className="py-3 px-4 text-left">Batch</th>
+                  <th className="py-3 px-4 text-left">Joined On</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
-              <tbody className="[&_tr:last-child]:border-0">
+              <tbody>
                 {filteredUsers.length > 0 ? (
                   filteredUsers.map((user) => (
                     <tr 
                       key={user._id} 
-                      className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted"
+                      className="border-b hover:bg-muted/50"
                     >
-                      <td className="p-4 align-middle">{user.name}</td>
-                      <td className="p-4 align-middle">{user.email}</td>
-                      <td className="p-4 align-middle">{user.role}</td>
-                      <td className="p-4 align-middle">{(user.role === 'student' || user.role === 'Student') ? user.admissionNumber || '-' : '-'}</td>
-                      <td className="p-4 align-middle">{user.batch || '-'}</td>
-                      <td className="p-4 align-middle">{user.createdAt ? formatDate(user.createdAt) : '-'}</td>
-                      <td className="p-4 align-middle">
+                      <td className="py-3 px-4">{user.name}</td>
+                      <td className="py-3 px-4">{user.email}</td>
+                      <td className="py-3 px-4">{user.role}</td>
+                      <td className="py-3 px-4">{(user.role === 'student' || user.role === 'Student') ? user.admissionNumber || '-' : '-'}</td>
+                      <td className="py-3 px-4">{user.batch || '-'}</td>
+                      <td className="py-3 px-4">{user.createdAt ? formatDate(user.createdAt) : '-'}</td>
+                      <td className="py-3 px-4">
                         <div className="flex justify-center gap-2">
                           <Button 
                             variant="outline" 
@@ -345,7 +345,9 @@ const ManageUsersPage: React.FC = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="p-4 text-center">No users found</td>
+                    <td colSpan={7} className="py-6 text-center text-muted-foreground">
+                      No users found. Try adjusting your search.
+                    </td>
                   </tr>
                 )}
               </tbody>
