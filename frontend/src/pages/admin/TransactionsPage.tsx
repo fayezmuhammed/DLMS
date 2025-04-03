@@ -118,7 +118,7 @@ const TransactionsPageAdmin: React.FC = () => {
   };
   
   const handleManualReturn = async (transaction: Transaction) => {
-    if (!transaction || !transaction.book) {
+    if (!transaction || !transaction._id) {
       toast({
         title: "Error",
         description: "Invalid transaction. Cannot mark as returned.",
@@ -128,8 +128,8 @@ const TransactionsPageAdmin: React.FC = () => {
     }
     
     try {
-      const bookId = transaction.book._id;
-      const response = await transactionService.returnBook(bookId);
+      // Use transaction ID instead of book ID, and set isTransactionId to true
+      const response = await transactionService.returnBook(transaction._id, true);
       
       if (response.success) {
         toast({

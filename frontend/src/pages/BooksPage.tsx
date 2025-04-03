@@ -43,6 +43,15 @@ const BooksPage: React.FC = () => {
     fetchData();
   }, []);
 
+  // Get category name from ID
+  const getCategoryName = (categoryId: string): string => {
+    if (categoryId === 'all') {
+      return 'All Categories';
+    }
+    const category = categories.find(cat => cat._id === categoryId);
+    return category ? category.name : 'Unknown Category';
+  };
+
   // Filter books based on search term, category, and availability
   const filteredBooks = books.filter(book => {
     const matchesSearch = 
@@ -97,7 +106,9 @@ const BooksPage: React.FC = () => {
         <div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger>
-              <SelectValue placeholder="Filter by category" />
+              <SelectValue placeholder="Filter by category">
+                {getCategoryName(selectedCategory)}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
