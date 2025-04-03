@@ -80,33 +80,12 @@ const upload = multer({
 });
 
 // Helper function to determine file type from extension and mimetype
-const getFileType = (filename, mimetype) => {
-    const fileExtension = path.extname(filename).toLowerCase().replace('.', '');
-    
-    // If the extension is clearly an ebook format, use it
-    if (['pdf', 'epub', 'mobi', 'doc', 'docx', 'txt'].includes(fileExtension)) {
-        return fileExtension;
-    }
-    
-    // Otherwise try to determine from mimetype
-    if (mimetype === 'application/pdf') return 'pdf';
-    if (mimetype === 'application/epub+zip' || 
-        mimetype === 'application/epub' || 
-        mimetype === 'application/x-epub') return 'epub';
-    if (mimetype === 'application/x-mobipocket-ebook') return 'mobi';
-    if (mimetype === 'application/msword') return 'doc';
-    if (mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') return 'docx';
-    if (mimetype === 'text/plain') return 'txt';
-    
-    // If application/octet-stream, try to guess from the original extension
-    if (mimetype === 'application/octet-stream') {
-        // Check the original filename for a known extension
-        const extMatch = filename.match(/\.(pdf|epub|mobi|doc|docx|txt)$/i);
-        if (extMatch) return extMatch[1].toLowerCase();
-    }
-    
-    // Default to pdf if we can't determine
-    return 'pdf';
+const getFileType = (fileName, mimeType) => {
+    const extension = path.extname(fileName).toLowerCase();
+    if (extension === '.pdf' || mimeType === 'application/pdf') return 'pdf';
+    if (extension === '.epub' || mimeType === 'application/epub+zip') return 'epub';
+    if (extension === '.mobi') return 'mobi';
+    return 'unknown';
 };
 
 // Get all e-books
@@ -167,116 +146,165 @@ exports.uploadEBookFiles = upload.fields([
 // Create new e-book
 exports.createEBook = async (req, res) => {
     try {
-        const bookData = { ...req.body };
+        console.log('Creating new ebook...');
         
-        // Handle local file storage
-        if (req.files) {
-            if (req.files.ebook && req.files.ebook[0]) {
-                const ebookFile = req.files.ebook[0];
+        const { title, author, description, isbn, category, language, publicationYear } = req.body;
+        
+        // Log received files
+        console.log('Files received:', req.files);
+        
+        // Validate required fields
+        if (!title || !author) {
+            return res.status(400).json({ message: 'Title and author are required' });
+        }
+
+        // Create book data object
+        const bookData = {
+            title,
+            author,
+            description,
+            isbn,
+            category,
+            language,
+            publicationYear: publicationYear ? parseInt(publicationYear) : undefined,
+        };
+
+        // Handle cover image
+        if (req.files && req.files.coverImage && req.files.coverImage[0]) {
+            console.log('Cover image found:', req.files.coverImage[0].path);
+            try {
+                // Upload cover image to Cloudinary
+                const uploadResult = await cloudinaryService.uploadImage(req.files.coverImage[0].path);
+                console.log('Cloudinary upload result:', uploadResult);
                 
-                // Set relative path for the file URL
-                bookData.fileUrl = `ebooks/${ebookFile.filename}`;
-                bookData.fileSize = ebookFile.size;
+                // Set cover image URL and public ID from Cloudinary
+                bookData.coverImage = uploadResult.secure_url;
+                bookData.coverImagePublicId = uploadResult.public_id;
                 
-                // Determine file type from extension and mimetype
-                bookData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
-                
-                console.log(`[SERVER] File upload - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}, Path: ${bookData.fileUrl}`);
-            }
-            
-            if (req.files.coverImage && req.files.coverImage[0]) {
-                const coverFile = req.files.coverImage[0];
-                
-                // Set relative path for the cover image
-                bookData.coverImage = `covers/${coverFile.filename}`;
-                
-                console.log(`[SERVER] Cover upload - Name: ${coverFile.originalname}, Path: ${bookData.coverImage}`);
+                // Delete temporary local file
+                fs.unlink(req.files.coverImage[0].path, (err) => {
+                    if (err) console.error('Error deleting temporary cover image file:', err);
+                });
+            } catch (cloudinaryError) {
+                console.error('Error uploading to Cloudinary:', cloudinaryError);
+                // Fall back to local storage if Cloudinary fails
+                bookData.coverImage = req.files.coverImage[0].path.replace(/\\/g, '/');
             }
         }
-        
+
+        // Handle e-book file
+        if (req.files && req.files.ebook && req.files.ebook[0]) {
+            const ebookFile = req.files.ebook[0];
+            console.log('E-book file found:', ebookFile.path);
+            
+            // Keep e-book files local since they can be large
+            bookData.fileUrl = `ebooks/${ebookFile.filename}`;
+            bookData.fileSize = ebookFile.size;
+            bookData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
+            
+            console.log(`File upload - Type: ${bookData.fileType}, Size: ${bookData.fileSize}, Path: ${bookData.fileUrl}`);
+        }
+
+        // Create the e-book in the database
         const ebook = await EBook.create(bookData);
         
-        res.status(201).json({
-            success: true,
-            data: ebook
-        });
+        res.status(201).json(ebook);
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
+        console.error('Error creating e-book:', error);
+        res.status(500).json({ message: 'Failed to create e-book', error: error.message });
     }
 };
 
 // Update e-book
 exports.updateEBook = async (req, res) => {
     try {
-        let ebook = await EBook.findById(req.params.id);
+        console.log('Updating ebook...');
+
+        const { id } = req.params;
+        const { title, author, description, isbn, category, language, publicationYear } = req.body;
         
+        // Log received files
+        console.log('Files received for update:', req.files);
+
+        // Find the e-book
+        const ebook = await EBook.findById(id);
         if (!ebook) {
-            return res.status(404).json({
-                success: false,
-                message: 'E-Book not found'
-            });
+            return res.status(404).json({ message: 'E-book not found' });
         }
-        
-        const bookData = { ...req.body };
-        
-        // Handle local file storage
-        if (req.files) {
-            if (req.files.ebook && req.files.ebook[0]) {
-                const ebookFile = req.files.ebook[0];
-                
-                // Delete old e-book file if it exists
-                if (ebook.fileUrl && !ebook.fileUrl.startsWith('http')) {
-                    const oldFilePath = path.join(__dirname, '..', 'public', ebook.fileUrl);
-                    if (fs.existsSync(oldFilePath)) {
-                        fs.unlinkSync(oldFilePath);
+
+        // Create update data object
+        const updateData = {
+            title,
+            author,
+            description,
+            isbn,
+            category,
+            language,
+            publicationYear: publicationYear ? parseInt(publicationYear) : undefined,
+        };
+
+        // Handle cover image update
+        if (req.files && req.files.coverImage && req.files.coverImage[0]) {
+            console.log('New cover image found:', req.files.coverImage[0].path);
+            try {
+                // Delete old cover image from Cloudinary if it exists
+                if (ebook.coverImagePublicId) {
+                    try {
+                        await cloudinaryService.deleteFile(ebook.coverImagePublicId);
+                        console.log('Deleted old cover image from Cloudinary:', ebook.coverImagePublicId);
+                    } catch (deleteError) {
+                        console.error('Error deleting old cover image from Cloudinary:', deleteError);
                     }
                 }
                 
-                // Set relative path for the new file
-                bookData.fileUrl = `ebooks/${ebookFile.filename}`;
-                bookData.fileSize = ebookFile.size;
+                // Upload new cover image to Cloudinary
+                const uploadResult = await cloudinaryService.uploadImage(req.files.coverImage[0].path);
+                console.log('Cloudinary upload result for update:', uploadResult);
                 
-                // Determine file type from extension and mimetype
-                bookData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
+                // Set cover image URL and public ID from Cloudinary
+                updateData.coverImage = uploadResult.secure_url;
+                updateData.coverImagePublicId = uploadResult.public_id;
                 
-                console.log(`[SERVER] File update - Type: ${bookData.fileType}, Mime: ${ebookFile.mimetype}, Name: ${ebookFile.originalname}, Path: ${bookData.fileUrl}`);
+                // Delete temporary local file
+                fs.unlink(req.files.coverImage[0].path, (err) => {
+                    if (err) console.error('Error deleting temporary cover image file:', err);
+                });
+            } catch (cloudinaryError) {
+                console.error('Error uploading to Cloudinary during update:', cloudinaryError);
+                // Fall back to local storage if Cloudinary fails
+                updateData.coverImage = req.files.coverImage[0].path.replace(/\\/g, '/');
+            }
+        }
+
+        // Handle e-book file update
+        if (req.files && req.files.ebook && req.files.ebook[0]) {
+            const ebookFile = req.files.ebook[0];
+            console.log('New e-book file found:', ebookFile.path);
+            
+            // Delete old e-book file if it exists locally
+            if (ebook.fileUrl && !ebook.fileUrl.startsWith('http')) {
+                const oldFilePath = path.join(__dirname, '..', 'public', ebook.fileUrl);
+                if (fs.existsSync(oldFilePath)) {
+                    fs.unlinkSync(oldFilePath);
+                    console.log(`Deleted old e-book file: ${oldFilePath}`);
+                }
             }
             
-            if (req.files.coverImage && req.files.coverImage[0]) {
-                const coverFile = req.files.coverImage[0];
-                
-                // Delete old cover image if it exists
-                if (ebook.coverImage && !ebook.coverImage.startsWith('http')) {
-                    const oldCoverPath = path.join(__dirname, '..', 'public', ebook.coverImage);
-                    if (fs.existsSync(oldCoverPath)) {
-                        fs.unlinkSync(oldCoverPath);
-                    }
-                }
-                
-                // Set relative path for the new cover image
-                bookData.coverImage = `covers/${coverFile.filename}`;
-                
-                console.log(`[SERVER] Cover update - Name: ${coverFile.originalname}, Path: ${bookData.coverImage}`);
-            }
+            updateData.fileUrl = `ebooks/${ebookFile.filename}`;
+            updateData.fileSize = ebookFile.size;
+            updateData.fileType = getFileType(ebookFile.originalname, ebookFile.mimetype);
         }
-        
-        ebook = await EBook.findByIdAndUpdate(req.params.id, bookData, {
+
+        // Update the e-book using MongoDB method
+        const updatedEBook = await EBook.findByIdAndUpdate(id, updateData, {
             new: true,
             runValidators: true
         });
         
-        res.status(200).json({
-            success: true,
-            data: ebook
-        });
+        res.json(updatedEBook);
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
+        console.error('Error updating e-book:', error);
+        res.status(500).json({ message: 'Failed to update e-book', error: error.message });
     }
 };
 

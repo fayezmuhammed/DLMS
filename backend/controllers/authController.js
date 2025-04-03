@@ -389,4 +389,124 @@ exports.resetPassword = async (req, res) => {
             message: error.message
         });
     }
+};
+
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+exports.updateProfile = async (req, res) => {
+    try {
+        const { name, email, phone, address, bio } = req.body;
+        
+        const user = await User.findById(req.user._id);
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        // Check if email is changed and already in use
+        if (email && email !== user.email) {
+            const emailExists = await User.findOne({ 
+                email,
+                _id: { $ne: user._id } // Exclude current user from check
+            });
+            
+            if (emailExists) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'This email is already in use'
+                });
+            }
+        }
+        
+        // Update user fields
+        if (name) user.name = name;
+        if (email) user.email = email;
+        if (phone !== undefined) user.phone = phone;
+        if (address !== undefined) user.address = address;
+        if (bio !== undefined) user.bio = bio;
+        
+        await user.save();
+        
+        res.json({
+            success: true,
+            data: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                phone: user.phone,
+                address: user.address,
+                bio: user.bio,
+                registeredDate: user.createdAt,
+                isVerified: user.isVerified
+            },
+            message: 'Profile updated successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// @desc    Change password
+// @route   PUT /api/auth/change-password
+// @access  Private
+exports.changePassword = async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide current and new password'
+            });
+        }
+        
+        if (newPassword.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password must be at least 6 characters'
+            });
+        }
+        
+        // Get user with password
+        const user = await User.findById(req.user._id).select('+password');
+        
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+        
+        // Check if current password matches
+        const isMatch = await user.matchPassword(currentPassword);
+        
+        if (!isMatch) {
+            return res.status(401).json({
+                success: false,
+                message: 'Current password is incorrect'
+            });
+        }
+        
+        // Set new password
+        user.password = newPassword;
+        await user.save();
+        
+        res.json({
+            success: true,
+            message: 'Password updated successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 }; 

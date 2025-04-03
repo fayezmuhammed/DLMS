@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import settingsService, { Settings } from '@/services/settingsService';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Category {
   _id: string;
@@ -44,6 +45,17 @@ const SettingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
+
+  // Add email server settings state
+  const [emailSettings, setEmailSettings] = useState({
+    host: '',
+    port: 587,
+    secure: false,
+    username: '',
+    password: '',
+    fromAddress: '',
+    fromName: 'Library Management System'
+  });
 
   useEffect(() => {
     fetchCategories();
@@ -196,6 +208,65 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  // Add email settings handlers
+  const handleEmailSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type } = e.target;
+    setEmailSettings(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseInt(value) : value
+    }));
+  };
+
+  const handleSecureToggle = (checked: boolean) => {
+    setEmailSettings(prev => ({
+      ...prev,
+      secure: checked
+    }));
+  };
+
+  const handleTestEmail = async () => {
+    const testEmail = prompt('Enter email address to send test to:');
+    if (!testEmail) return;
+    
+    try {
+      const response = await settingsService.testEmailSettings(testEmail);
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'Test email sent successfully!'
+        });
+      } else {
+        throw new Error(response.message || 'Failed to send test email');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to send test email',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSaveEmailSettings = async () => {
+    try {
+      const response = await settingsService.updateEmailServer(emailSettings);
+      if (response.success) {
+        toast({
+          title: 'Success',
+          description: 'Email settings saved successfully!'
+        });
+      } else {
+        throw new Error(response.message || 'Failed to save email settings');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to save email settings',
+        variant: 'destructive',
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -206,10 +277,11 @@ const SettingsPage: React.FC = () => {
       </div>
 
       <Tabs defaultValue="general">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="borrowing">Borrowing Rules</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="categories">Categories</TabsTrigger>
         </TabsList>
         
@@ -393,6 +465,95 @@ const SettingsPage: React.FC = () => {
                     onCheckedChange={() => handleNotificationToggle('newBookNotifications')}
                   />
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="email" className="mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Configuration</CardTitle>
+              <CardDescription>
+                Configure your email server for notifications
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="emailHost">SMTP Host</Label>
+                  <Input 
+                    id="emailHost" 
+                    name="host"
+                    value={emailSettings.host}
+                    onChange={handleEmailSettingsChange}
+                    placeholder="smtp.example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emailPort">SMTP Port</Label>
+                  <Input 
+                    id="emailPort" 
+                    name="port"
+                    type="number"
+                    value={emailSettings.port}
+                    onChange={handleEmailSettingsChange}
+                    placeholder="587"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emailUsername">Username</Label>
+                  <Input 
+                    id="emailUsername" 
+                    name="username"
+                    value={emailSettings.username}
+                    onChange={handleEmailSettingsChange}
+                    placeholder="your-email@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emailPassword">Password</Label>
+                  <Input 
+                    id="emailPassword" 
+                    name="password"
+                    type="password"
+                    value={emailSettings.password}
+                    onChange={handleEmailSettingsChange}
+                    placeholder="••••••••"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fromAddress">From Email</Label>
+                  <Input 
+                    id="fromAddress" 
+                    name="fromAddress"
+                    value={emailSettings.fromAddress}
+                    onChange={handleEmailSettingsChange}
+                    placeholder="library@example.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fromName">From Name</Label>
+                  <Input 
+                    id="fromName" 
+                    name="fromName"
+                    value={emailSettings.fromName}
+                    onChange={handleEmailSettingsChange}
+                    placeholder="Library Management System"
+                  />
+                </div>
+                <div className="col-span-2 flex items-center space-x-2">
+                  <Checkbox 
+                    id="secureConnection" 
+                    checked={emailSettings.secure}
+                    onCheckedChange={handleSecureToggle}
+                  />
+                  <Label htmlFor="secureConnection">Use secure connection (SSL/TLS)</Label>
+                </div>
+              </div>
+              <div className="flex justify-between pt-4">
+                <Button variant="outline" onClick={handleTestEmail}>Test Email</Button>
+                <Button onClick={handleSaveEmailSettings}>Save Email Settings</Button>
               </div>
             </CardContent>
           </Card>

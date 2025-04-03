@@ -14,6 +14,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from '@/components/ui/use-toast';
+import { authService } from '@/services/authService';
+import { transactionService, UserStats, RecentActivity } from '@/services/transactionService';
 
 interface User {
   _id: string;
@@ -49,69 +51,64 @@ const ProfilePage: React.FC = () => {
   });
 
   // Statistics for the user
-  const stats = {
-    totalBorrowed: 27,
-    currentBorrowed: 3,
+  const [stats, setStats] = useState<UserStats>({
+    totalBorrowed: 0,
+    currentBorrowed: 0,
     overdue: 0,
-    wishlistItems: 12,
-  };
-
-  // Recent activities (mock data)
-  const recentActivities = [
-    { 
-      id: 1, 
-      type: 'borrow', 
-      book: 'To Kill a Mockingbird', 
-      date: '2023-10-20' 
-    },
-    { 
-      id: 2, 
-      type: 'return', 
-      book: '1984', 
-      date: '2023-10-18' 
-    },
-    { 
-      id: 3, 
-      type: 'wishlist_add', 
-      book: 'Pride and Prejudice', 
-      date: '2023-10-15' 
-    },
-    { 
-      id: 4, 
-      type: 'borrow', 
-      book: 'The Great Gatsby', 
-      date: '2023-10-10' 
-    },
-  ];
+    wishlistItems: 0,
+    recentActivities: []
+  });
 
   useEffect(() => {
-    // Fetch user data from localStorage
-    const storedUser = localStorage.getItem('user');
-    const isAuthenticated = localStorage.getItem('isAuthenticated');
-    
-    if (storedUser && isAuthenticated) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+    fetchUserProfile();
+    fetchUserStats();
+  }, [navigate]);
+
+  const fetchUserProfile = async () => {
+    try {
+      setLoading(true);
+      const response = await authService.getProfile();
+      
+      if (response.success && response.data) {
+        setUser(response.data);
         setFormData({
-          name: parsedUser.name || '',
-          email: parsedUser.email || '',
-          phone: parsedUser.phone || '',
-          address: parsedUser.address || '',
-          bio: parsedUser.bio || '',
+          name: response.data.name || '',
+          email: response.data.email || '',
+          phone: response.data.phone || '',
+          address: response.data.address || '',
+          bio: response.data.bio || '',
           currentPassword: '',
           newPassword: '',
           confirmNewPassword: '',
         });
-      } catch (err) {
-        console.error('Error parsing user data:', err);
+      } else {
+        // If no valid user profile, redirect to login
+        toast({
+          title: "Authentication error",
+          description: "Please login to view your profile",
+          variant: "destructive",
+        });
         navigate('/login', { replace: true });
       }
-    } else {
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
       navigate('/login', { replace: true });
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [navigate]);
+  };
+
+  const fetchUserStats = async () => {
+    try {
+      const response = await transactionService.getUserStatistics();
+      if (response.success && response.data) {
+        setStats(response.data);
+      }
+    } catch (err) {
+      console.error('Error fetching user statistics:', err);
+      // Don't redirect here, non-critical data
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -137,32 +134,55 @@ const ProfilePage: React.FC = () => {
     setIsEditing(!isEditing);
   };
 
-  const handleSaveProfile = () => {
-    // In a real app, you would send this to your backend
+  const handleSaveProfile = async () => {
     if (user) {
-      const updatedUser = {
-        ...user,
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        bio: formData.bio,
-      };
-      
-      // Update localStorage
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      setIsEditing(false);
-      
-      // Show success toast
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
-      });
+      try {
+        const profileData = {
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          address: formData.address,
+          bio: formData.bio,
+        };
+        
+        const response = await authService.updateProfile(profileData);
+        
+        if (response.success) {
+          // Update local user state
+          setUser(response.data);
+          setIsEditing(false);
+          
+          // Also update localStorage to keep UI consistent
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser);
+            const updatedStoredUser = { ...parsedUser, ...profileData };
+            localStorage.setItem('user', JSON.stringify(updatedStoredUser));
+          }
+          
+          toast({
+            title: "Profile updated",
+            description: "Your profile has been successfully updated.",
+          });
+        } else {
+          toast({
+            title: "Update failed",
+            description: response.message || "Failed to update profile. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } catch (err) {
+        console.error('Error updating profile:', err);
+        toast({
+          title: "Error",
+          description: "Failed to update profile. Please try again later.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (formData.newPassword !== formData.confirmNewPassword) {
       toast({
         title: "Passwords do not match",
@@ -172,21 +192,40 @@ const ProfilePage: React.FC = () => {
       return;
     }
     
-    // In a real app, you would validate the current password and send the new one to your backend
-    
-    // Reset password fields
-    setFormData(prev => ({
-      ...prev,
-      currentPassword: '',
-      newPassword: '',
-      confirmNewPassword: '',
-    }));
-    
-    // Show success toast
-    toast({
-      title: "Password updated",
-      description: "Your password has been successfully changed.",
-    });
+    try {
+      const response = await authService.changePassword({
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword
+      });
+      
+      if (response.success) {
+        // Reset password fields
+        setFormData(prev => ({
+          ...prev,
+          currentPassword: '',
+          newPassword: '',
+          confirmNewPassword: '',
+        }));
+        
+        toast({
+          title: "Password updated",
+          description: "Your password has been successfully changed.",
+        });
+      } else {
+        toast({
+          title: "Password change failed",
+          description: response.message || "Failed to update password. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (err) {
+      console.error('Error changing password:', err);
+      toast({
+        title: "Error",
+        description: "Failed to change password. Please try again later.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getInitials = (name: string) => {
@@ -204,6 +243,19 @@ const ProfilePage: React.FC = () => {
       month: 'long',
       day: 'numeric'
     }).format(date);
+  };
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'borrow':
+        return '📚'; // Book emoji for borrowing
+      case 'return':
+        return '📋'; // Clipboard emoji for returns
+      case 'wishlist_add':
+        return '❤️'; // Heart emoji for wishlisting
+      default:
+        return '📝'; // Default activity icon
+    }
   };
 
   if (loading) {
@@ -454,52 +506,42 @@ const ProfilePage: React.FC = () => {
                 </CardHeader>
                 <CardContent className="py-6">
                   <div className="space-y-4">
-                    {recentActivities.map(activity => (
-                      <div key={activity.id} className="flex items-start border-b border-gray-100 pb-4">
-                        <div className={`
-                          h-8 w-8 rounded-full flex items-center justify-center flex-shrink-0 mr-3
-                          ${activity.type === 'borrow' ? 'bg-green-100 text-green-600' : 
-                            activity.type === 'return' ? 'bg-blue-100 text-blue-600' : 
-                            'bg-purple-100 text-purple-600'}
-                        `}>
-                          {activity.type === 'borrow' ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                            </svg>
-                          ) : activity.type === 'return' ? (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-grow">
-                          <div className="flex justify-between">
-                            <p className="text-sm font-medium">
+                    {stats.recentActivities && stats.recentActivities.length > 0 ? (
+                      stats.recentActivities.map((activity) => (
+                        <div 
+                          key={activity.id}
+                          className="flex items-start p-3 border rounded-md hover:bg-gray-50"
+                        >
+                          <div className="text-2xl mr-4">{getActivityIcon(activity.type)}</div>
+                          <div>
+                            <h4 className="font-medium">
                               {activity.type === 'borrow' ? 'Borrowed' : 
                                activity.type === 'return' ? 'Returned' : 
-                               'Added to Wishlist'}
+                               'Added to wishlist'}
+                            </h4>
+                            <p className="text-gray-700">{activity.book}</p>
+                            <p className="text-sm text-gray-500">
+                              {formatDate(activity.date)}
                             </p>
-                            <p className="text-xs text-gray-500">{formatDate(activity.date)}</p>
                           </div>
-                          <p className="text-sm text-gray-600 mt-1">{activity.book}</p>
                         </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-6 text-gray-500">
+                        No recent activities found
                       </div>
-                    ))}
+                    )}
+                    
+                    <div className="text-center pt-4">
+                      <Button 
+                        variant="outline"
+                        onClick={() => navigate('/transactions')}
+                      >
+                        View All Transactions
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
-                <CardFooter className="bg-gray-50 border-t flex justify-center py-4">
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => navigate('/transactions')}
-                    className="text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50"
-                  >
-                    View All Activity
-                  </Button>
-                </CardFooter>
               </Card>
             </TabsContent>
           </Tabs>

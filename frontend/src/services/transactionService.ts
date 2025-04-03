@@ -33,6 +33,21 @@ export interface FineCalculation {
   fineAmount: number;
 }
 
+export interface UserStats {
+  totalBorrowed: number;
+  currentBorrowed: number;
+  overdue: number;
+  wishlistItems: number;
+  recentActivities: RecentActivity[];
+}
+
+export interface RecentActivity {
+  id: string;
+  type: string;
+  book: string;
+  date: string;
+}
+
 export const transactionService = {
   async getBorrowingHistory() {
     const response = await api.get('/transactions/history');
@@ -106,5 +121,10 @@ export const transactionService = {
       daysOverdue,
       fineAmount: parseFloat(fineAmount.toFixed(2))
     };
+  },
+
+  async getUserStatistics() {
+    const response = await api.get('/transactions/statistics');
+    return response.data;
   }
 }; 

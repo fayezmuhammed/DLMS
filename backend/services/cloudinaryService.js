@@ -1,5 +1,6 @@
 const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
+const fs = require('fs');
 
 // Configure Cloudinary with credentials
 cloudinary.config({
@@ -44,6 +45,39 @@ const uploadBuffer = (fileBuffer, folder, fileName, options = {}) => {
 };
 
 /**
+ * Uploads an image file from a local path to Cloudinary
+ * 
+ * @param {String} filePath - Path to the image file
+ * @param {Object} options - Additional upload options
+ * @returns {Promise<Object>} - Cloudinary upload result
+ */
+const uploadImage = async (filePath, options = {}) => {
+  console.log(`Uploading image from path: ${filePath}`);
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath, 
+      {
+        folder: 'book-covers',
+        resource_type: 'image',
+        transformation: [
+          { width: 800, crop: 'limit' }, // Resize to max width of 800px
+          { quality: 'auto:good' }       // Optimize quality
+        ],
+        ...options
+      },
+      (error, result) => {
+        if (error) {
+          console.error('Cloudinary upload error:', error);
+          return reject(error);
+        }
+        console.log('Cloudinary upload successful');
+        resolve(result);
+      }
+    );
+  });
+};
+
+/**
  * Uploads an image to Cloudinary
  * 
  * @param {Buffer} fileBuffer - The image buffer
@@ -84,5 +118,6 @@ const deleteFile = async (publicId, resourceType = 'image') => {
 module.exports = {
   uploadBookCover,
   uploadEBook,
+  uploadImage,
   deleteFile
 }; 

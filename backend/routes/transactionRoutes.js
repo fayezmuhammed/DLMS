@@ -11,7 +11,8 @@ const {
     getBookTransactions,
     issueBook,
     getUserActiveTransactions,
-    getUserTransactionHistory
+    getUserTransactionHistory,
+    getUserStatistics
 } = require('../controllers/transactionController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -21,6 +22,7 @@ const { protect, authorize } = require('../middleware/auth');
 router.post('/borrow/:bookId', protect, borrowBook);
 router.post('/return/:bookId', protect, returnBook);
 router.get('/history', protect, getBorrowingHistory);
+router.get('/statistics', protect, getUserStatistics);
 
 // New endpoint to return a book by transaction ID
 router.post('/:transactionId/return', protect, async (req, res) => {

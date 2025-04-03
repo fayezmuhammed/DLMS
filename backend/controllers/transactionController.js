@@ -592,4 +592,65 @@ exports.getUserTransactionHistory = async (req, res) => {
             error: error.message
         });
     }
+};
+
+// @desc    Get user's borrowing statistics
+// @route   GET /api/transactions/statistics
+// @access  Private
+exports.getUserStatistics = async (req, res) => {
+    try {
+        // Get total borrowed books
+        const totalBorrowed = await Transaction.countDocuments({
+            user: req.user._id
+        });
+        
+        // Get current borrowed books
+        const currentBorrowed = await Transaction.countDocuments({
+            user: req.user._id,
+            status: { $in: ['borrowed', 'overdue'] }
+        });
+        
+        // Get overdue books
+        const overdue = await Transaction.countDocuments({
+            user: req.user._id,
+            status: 'overdue'
+        });
+        
+        // Get wishlist items count (assuming this comes from another model)
+        // This is just a placeholder, implement wishlist count based on your DB schema
+        const wishlistItems = 0;
+        
+        // Get recent activities
+        const recentActivities = await Transaction.find({ 
+            user: req.user._id 
+        })
+        .populate('book', 'title author')
+        .sort('-createdAt')
+        .limit(5);
+        
+        // Format the recent activities
+        const formattedActivities = recentActivities.map(transaction => ({
+            id: transaction._id,
+            type: transaction.status === 'returned' ? 'return' : 'borrow',
+            book: transaction.book.title,
+            date: transaction.createdAt
+        }));
+        
+        res.json({
+            success: true,
+            data: {
+                totalBorrowed,
+                currentBorrowed,
+                overdue,
+                wishlistItems,
+                recentActivities: formattedActivities
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Error retrieving user statistics',
+            error: error.message
+        });
+    }
 }; 

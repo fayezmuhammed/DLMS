@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import api from '@/utils/api';
 
 const ManageEBooksPage: React.FC = () => {
   const { toast } = useToast();
@@ -57,6 +58,13 @@ const ManageEBooksPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await ebookService.getEBooks();
+      
+      // Log response to debug cover image issues
+      console.log('Fetched e-books response:', response);
+      if (response.data && response.data.length > 0) {
+        console.log('First e-book coverImage:', response.data[0].coverImage);
+      }
+      
       setEbooks(response.data || []);
       setLoading(false);
     } catch (err) {
@@ -80,20 +88,27 @@ const ManageEBooksPage: React.FC = () => {
     }
   };
 
+  // Helper function to format cover image URL correctly
+  const getCoverImageUrl = (imagePath?: string) => {
+    if (!imagePath) return '';
+    
+    // If it's already a full URL (including Cloudinary URLs)
+    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+      return imagePath;
+    }
+    
+    // If it's a relative path, prefix with backend URL
+    return `${import.meta.env.VITE_API_URL}/${imagePath}`;
+  };
+
   // Handle cover image file selection
   const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log('Selected cover image:', file.name, file.type, file.size);
       setCoverImageFile(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target && typeof event.target.result === 'string') {
-          setCoverImagePreview(event.target.result);
-        }
-      };
-      reader.readAsDataURL(file);
+      const fileUrl = URL.createObjectURL(file);
+      setCoverImagePreview(fileUrl);
     }
   };
   
@@ -115,94 +130,85 @@ const ManageEBooksPage: React.FC = () => {
     setNewEBook(prev => ({ ...prev, [name]: value }));
   };
 
-  // Handle form submission to add a new e-book
+  // Add e-book form submission handler
   const handleAddEBook = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
-    if (!newEBook.title || !newEBook.author) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields (Title, Author)",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    if (!ebookFile) {
-      toast({
-        title: "Validation Error",
-        description: "Please select an e-book file to upload",
-        variant: "destructive",
-      });
-      return;
-    }
-    
+    setFormSubmitting(true);
     try {
-      setFormSubmitting(true);
-      
-      // Create FormData
       const formData = new FormData();
-      formData.append('title', newEBook.title);
-      formData.append('author', newEBook.author);
       
-      // Optional fields
-      if (newEBook.isbn) formData.append('isbn', newEBook.isbn);
-      if (newEBook.category) formData.append('category', newEBook.category);
-      if (newEBook.publisher) formData.append('publisher', newEBook.publisher);
-      if (newEBook.edition) formData.append('edition', newEBook.edition);
-      if (newEBook.description) formData.append('description', newEBook.description);
+      // Add basic form fields
+      Object.entries(newEBook).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          formData.append(key, value.toString());
+        }
+      });
       
-      // Other fields
-      formData.append('status', newEBook.status);
-      formData.append('accessRestriction', newEBook.accessRestriction);
-      formData.append('downloadable', String(newEBook.downloadable));
-      
-      if (newEBook.pages) {
-        formData.append('pages', newEBook.pages.toString());
+      // Add e-book file
+      if (ebookFile) {
+        console.log('Adding e-book file to form data:', ebookFile.name, ebookFile.type, ebookFile.size);
+        formData.append('ebook', ebookFile);
+      } else {
+        toast({
+          title: "Missing File",
+          description: "Please upload an e-book file",
+          variant: "destructive",
+        });
+        setFormSubmitting(false);
+        return;
       }
       
-      // Append files
-      formData.append('ebook', ebookFile);
+      // Add cover image
       if (coverImageFile) {
+        console.log('Adding cover image to form data:', coverImageFile.name, coverImageFile.type, coverImageFile.size);
         formData.append('coverImage', coverImageFile);
       }
       
-      // Submit the form
-      await ebookService.createEBook(formData);
+      // Log form data for debugging
+      console.log('Form data entries:');
+      for (const pair of formData.entries()) {
+        console.log(pair[0], typeof pair[1] === 'string' ? pair[1] : `(file: ${(pair[1] as File).name})`);
+      }
       
-      // Show success message
-      toast({
-        title: "Success",
-        description: "E-book added successfully",
-      });
+      const response = await ebookService.createEBook(formData);
+      console.log('Create E-book response:', response);
       
-      // Reset form and close dialog
-      setNewEBook({
-        title: '',
-        author: '',
-        isbn: '',
-        category: '',
-        publisher: '',
-        edition: '',
-        description: '',
-        status: 'Available',
-        accessRestriction: 'Members',
-        downloadable: true,
-        pages: ''
-      });
-      setEbookFile(null);
-      setCoverImageFile(null);
-      setCoverImagePreview('');
-      setIsAddDialogOpen(false);
-      
-      // Refresh e-books list
-      fetchEbooks();
+      if (response && (response.success || response.data)) {
+        toast({
+          title: "Success",
+          description: "E-book added successfully",
+        });
+        
+        // Reset form and close dialog
+        setNewEBook({
+          title: '',
+          author: '',
+          description: '',
+          isbn: '',
+          category: '',
+          publisher: '',
+          edition: '',
+          accessRestriction: 'Members',
+          downloadable: true,
+          status: 'Available',
+          pages: ''
+        });
+        setEbookFile(null);
+        setCoverImageFile(null);
+        setCoverImagePreview('');
+        setIsAddDialogOpen(false);
+        
+        // Refresh e-books list
+        fetchEbooks();
+      } else {
+        throw new Error('Invalid response structure');
+      }
     } catch (error) {
       console.error('Error adding e-book:', error);
       toast({
         title: "Error",
-        description: "Failed to add e-book. Please try again.",
+        description: "Failed to add e-book",
         variant: "destructive",
       });
     } finally {
@@ -210,20 +216,96 @@ const ManageEBooksPage: React.FC = () => {
     }
   };
 
-  // Handle edit cover image change
-  const handleEditCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setEditCoverImageFile(file);
+  // Edit e-book form submission handler
+  const handleEditEBook = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingEBook) return;
+    
+    setFormSubmitting(true);
+    try {
+      const formData = new FormData();
       
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target && typeof event.target.result === 'string') {
-          setEditCoverImagePreview(event.target.result);
+      // Add basic form fields
+      Object.entries(editingEBook).forEach(([key, value]) => {
+        // Skip _id field and file-related fields that will be handled separately
+        if (
+          key !== '_id' && 
+          key !== 'fileUrl' && 
+          key !== 'filePublicId' && 
+          key !== 'coverImage' && 
+          key !== 'coverImagePublicId' && 
+          value !== null && 
+          value !== undefined
+        ) {
+          // Handle category specially
+          if (key === 'category' && typeof value === 'object' && value?._id) {
+            formData.append(key, value._id);
+          } else {
+            formData.append(key, value.toString());
+          }
         }
-      };
-      reader.readAsDataURL(file);
+      });
+      
+      // Add e-book file if changed
+      if (editEbookFile) {
+        console.log('Adding updated e-book file to form data:', editEbookFile.name, editEbookFile.type, editEbookFile.size);
+        formData.append('ebook', editEbookFile);
+      }
+      
+      // Add cover image if changed
+      if (editCoverImageFile) {
+        console.log('Adding updated cover image to form data:', editCoverImageFile.name, editCoverImageFile.type, editCoverImageFile.size);
+        formData.append('coverImage', editCoverImageFile);
+      }
+      
+      // Log form data for debugging
+      console.log('Edit form data entries:');
+      for (const pair of formData.entries()) {
+        console.log(pair[0], typeof pair[1] === 'string' ? pair[1] : `(file: ${(pair[1] as File).name})`);
+      }
+      
+      const response = await ebookService.updateEBook(editingEBook._id, formData);
+      console.log('Update E-book response:', response);
+      
+      if (response) {
+        toast({
+          title: "Success",
+          description: "E-book updated successfully",
+        });
+        
+        // Reset form and close dialog
+        setEditingEBook(null);
+        setEditEbookFile(null);
+        setEditCoverImageFile(null);
+        setEditCoverImagePreview('');
+        setIsEditDialogOpen(false);
+        
+        // Refresh e-books list
+        fetchEbooks();
+      } else {
+        throw new Error('Invalid response structure');
+      }
+    } catch (error) {
+      console.error('Error updating e-book:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update e-book",
+        variant: "destructive",
+      });
+    } finally {
+      setFormSubmitting(false);
+    }
+  };
+
+  // Edit cover image change
+  const handleEditCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      console.log('Selected cover image for edit:', file.name, file.type, file.size);
+      setEditCoverImageFile(file);
+      const fileUrl = URL.createObjectURL(file);
+      setEditCoverImagePreview(fileUrl);
     }
   };
   
@@ -246,90 +328,6 @@ const ManageEBooksPage: React.FC = () => {
   const handleEditSelectChange = (name: string, value: string | boolean) => {
     if (editingEBook) {
       setEditingEBook(prev => prev ? { ...prev, [name]: value } : null);
-    }
-  };
-
-  // Handle edit e-book submission
-  const handleEditEBook = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!editingEBook) return;
-
-    // Validate form
-    if (!editingEBook.title || !editingEBook.author) {
-      toast({
-        title: "Validation Error",
-        description: "Please fill in all required fields (Title, Author)",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-      setFormSubmitting(true);
-      
-      // Create FormData
-      const formData = new FormData();
-      formData.append('title', editingEBook.title);
-      formData.append('author', editingEBook.author);
-      
-      // Optional fields
-      if (editingEBook.isbn) formData.append('isbn', editingEBook.isbn);
-      
-      // Handle category which could be an object or string
-      if (editingEBook.category) {
-        formData.append('category', typeof editingEBook.category === 'object' 
-          ? editingEBook.category._id 
-          : editingEBook.category);
-      }
-      
-      // Other fields
-      formData.append('publisher', editingEBook.publisher || '');
-      formData.append('edition', editingEBook.edition || '');
-      formData.append('description', editingEBook.description || '');
-      formData.append('status', editingEBook.status);
-      formData.append('accessRestriction', editingEBook.accessRestriction);
-      formData.append('downloadable', String(editingEBook.downloadable));
-      
-      if (editingEBook.pages) {
-        formData.append('pages', editingEBook.pages.toString());
-      }
-      
-      // Append files if new ones are selected
-      if (editEbookFile) {
-        formData.append('ebook', editEbookFile);
-      }
-      if (editCoverImageFile) {
-        formData.append('coverImage', editCoverImageFile);
-      }
-      
-      // Submit the form
-      await ebookService.updateEBook(editingEBook._id, formData);
-      
-      // Show success message
-      toast({
-        title: "Success",
-        description: "E-book updated successfully",
-      });
-      
-      // Reset form and close dialog
-      setEditingEBook(null);
-      setEditEbookFile(null);
-      setEditCoverImageFile(null);
-      setEditCoverImagePreview('');
-      setIsEditDialogOpen(false);
-      
-      // Refresh e-books list
-      fetchEbooks();
-    } catch (error) {
-      console.error('Error updating e-book:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update e-book. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setFormSubmitting(false);
     }
   };
 
@@ -453,7 +451,9 @@ const ManageEBooksPage: React.FC = () => {
                       onValueChange={(value) => handleSelectChange('category', value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder="Select a category">
+                          {newEBook.category ? categories.find(c => c._id === newEBook.category)?.name || 'Select a category' : 'Select a category'}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map(category => (
@@ -654,8 +654,15 @@ const ManageEBooksPage: React.FC = () => {
                             // Handle different response structures
                             const ebookData = response.data || response.ebook;
                             if (ebookData) {
+                              console.log('E-book details for edit:', ebookData);
+                              console.log('Cover image path:', ebookData.coverImage);
+                              
+                              // Make sure to properly format the cover image URL
+                              const coverImageUrl = getCoverImageUrl(ebookData.coverImage || ebookData.image);
+                              console.log('Formatted cover image URL:', coverImageUrl);
+                              
                               setEditingEBook(ebookData);
-                              setEditCoverImagePreview(ebookData.coverImage || ebookData.image || '');
+                              setEditCoverImagePreview(coverImageUrl);
                               setIsEditDialogOpen(true);
                             } else {
                               throw new Error('Invalid response structure');
@@ -708,8 +715,15 @@ const ManageEBooksPage: React.FC = () => {
                                   // Handle different response structures
                                   const ebookData = response.data || response.ebook;
                                   if (ebookData) {
+                                    console.log('E-book details for edit:', ebookData);
+                                    console.log('Cover image path:', ebookData.coverImage);
+                                    
+                                    // Make sure to properly format the cover image URL
+                                    const coverImageUrl = getCoverImageUrl(ebookData.coverImage || ebookData.image);
+                                    console.log('Formatted cover image URL:', coverImageUrl);
+                                    
                                     setEditingEBook(ebookData);
-                                    setEditCoverImagePreview(ebookData.coverImage || ebookData.image || '');
+                                    setEditCoverImagePreview(coverImageUrl);
                                     setIsEditDialogOpen(true);
                                   } else {
                                     throw new Error('Invalid response structure');
@@ -816,11 +830,21 @@ const ManageEBooksPage: React.FC = () => {
                   <div className="space-y-2">
                     <Label htmlFor="edit-category">Category</Label>
                     <Select
-                      value={typeof editingEBook.category === 'object' ? editingEBook.category._id : editingEBook.category}
+                      value={editingEBook && editingEBook.category ? 
+                        (typeof editingEBook.category === 'object' ? 
+                          editingEBook.category._id : 
+                          editingEBook.category) : 
+                        ''}
                       onValueChange={(value) => handleEditSelectChange('category', value)}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a category" />
+                        <SelectValue placeholder="Select a category">
+                          {editingEBook && editingEBook.category ? 
+                            (typeof editingEBook.category === 'object' ? 
+                              editingEBook.category.name : 
+                              categories.find(c => c._id === editingEBook.category)?.name || 'Select a category') : 
+                            'Select a category'}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {categories.map(category => (
@@ -944,10 +968,10 @@ const ManageEBooksPage: React.FC = () => {
                       accept="image/*"
                       onChange={handleEditCoverImageChange}
                     />
-                    {(editCoverImagePreview || editingEBook.coverImage) && (
+                    {(editCoverImagePreview || (editingEBook && editingEBook.coverImage)) && (
                       <div className="mt-2 relative aspect-[3/4] w-20 overflow-hidden rounded-md border border-gray-200">
                         <img 
-                          src={editCoverImagePreview || editingEBook.coverImage} 
+                          src={editCoverImagePreview || getCoverImageUrl(editingEBook?.coverImage)}
                           alt="Cover preview" 
                           className="object-cover w-full h-full"
                         />

@@ -107,15 +107,30 @@ exports.getCategoryDistribution = async (req, res) => {
         // Get book categories distribution
         const categoryDistribution = await Book.aggregate([
             {
+                $lookup: {
+                    from: 'categories',
+                    localField: 'category',
+                    foreignField: '_id',
+                    as: 'categoryInfo'
+                }
+            },
+            {
+                $unwind: {
+                    path: '$categoryInfo',
+                    preserveNullAndEmptyArrays: true
+                }
+            },
+            {
                 $group: {
                     _id: "$category",
+                    categoryName: { $first: "$categoryInfo.name" },
                     value: { $sum: 1 }
                 }
             },
             {
                 $project: {
                     _id: 0,
-                    name: "$_id",
+                    name: { $ifNull: ["$categoryName", "Uncategorized"] },
                     value: 1
                 }
             },
