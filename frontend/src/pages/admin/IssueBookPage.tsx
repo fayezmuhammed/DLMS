@@ -11,15 +11,24 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, BookOpenCheck, User, Clock, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from '@/components/ui/use-toast';
 import { bookService, Book } from '@/services/bookService';
 import { userService } from '@/services/userService';
 import { transactionService } from '@/services/transactionService';
 import settingsService, { BorrowingRules } from '@/services/settingsService';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function IssueBookPage() {
   const navigate = useNavigate();
@@ -293,7 +302,10 @@ export default function IssueBookPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[70vh]">
-        <p className="text-muted-foreground">Loading...</p>
+        <div className="text-center">
+          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading resources...</p>
+        </div>
       </div>
     );
   }
@@ -312,139 +324,234 @@ export default function IssueBookPage() {
         </Button>
       </div>
 
-      <div className="grid gap-6 border rounded-lg p-6 bg-card">
-        {/* Book Selection Section */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold">Book Information</h3>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="book" className="text-right">Book</Label>
-            <div className="col-span-3">
-              <div className="relative">
-                <Input 
-                  placeholder="Search for a book..." 
-                  value={bookSearchTerm}
-                  onChange={(e) => handleBookSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <Select 
-                  value={selectedBook || ''} 
-                  onValueChange={(value) => setSelectedBook(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select book" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableBooks.map(book => (
-                      <SelectItem key={book._id} value={book._id}>
-                        {book.title} by {book.author}
-                      </SelectItem>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <BookOpenCheck className="h-5 w-5 text-primary" />
+            <CardTitle>Book Selection</CardTitle>
+          </div>
+          <CardDescription>
+            Choose an available book to issue to a user
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="bookSearch">Search and Select Book</Label>
+            <div className="relative">
+              <Input 
+                id="bookSearch"
+                placeholder="Type to search books by title, author, or book number..." 
+                value={bookSearchTerm}
+                onChange={(e) => handleBookSearch(e.target.value)}
+                className="w-full"
+              />
+              {bookSearchTerm.length >= 2 && filteredBooks.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg max-h-60 overflow-auto border border-border">
+                  <div className="py-1">
+                    {filteredBooks.map((book) => (
+                      <div
+                        key={book._id}
+                        className="px-4 py-2 hover:bg-muted cursor-pointer flex items-center gap-3"
+                        onClick={() => {
+                          setSelectedBook(book._id);
+                          setBookSearchTerm(book.title);
+                          setTimeout(() => setFilteredBooks([]), 100);
+                        }}
+                      >
+                        <div className="h-10 w-8 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
+                          {book.coverImage && (
+                            <img 
+                              src={book.coverImage} 
+                              alt="" 
+                              className="h-full w-full object-cover"
+                            />
+                          )}
+                        </div>
+                        <div>
+                          <div className="font-medium">{book.title}</div>
+                          <div className="text-xs text-muted-foreground">by {book.author}</div>
+                        </div>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </div>
+              )}
+              {bookSearchTerm.length >= 2 && filteredBooks.length === 0 && !selectedBook && (
+                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-border">
+                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                    No books found with that title or author
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
+          
           {/* Book Details Preview */}
           {selectedBook && (
-            <div className="ml-[calc(25%+16px)] border rounded-md p-3 bg-muted">
-              <div className="flex gap-3">
-                <div className="w-20 h-28 bg-gray-200 rounded flex-shrink-0">
-                  {availableBooks.find(book => book._id === selectedBook)?.coverImage && (
-                    <img 
-                      src={availableBooks.find(book => book._id === selectedBook)?.coverImage} 
-                      alt="Book cover" 
-                      className="w-full h-full object-cover rounded"
-                    />
-                  )}
-                </div>
-                <div>
-                  <p className="font-semibold">{availableBooks.find(book => book._id === selectedBook)?.title}</p>
-                  <p className="text-sm text-muted-foreground">{availableBooks.find(book => book._id === selectedBook)?.author}</p>
-                  <div className="flex gap-2 mt-1">
-                    <Badge variant="outline">{availableBooks.find(book => book._id === selectedBook)?.status}</Badge>
-                    <Badge variant="outline">Copies: {availableBooks.find(book => book._id === selectedBook)?.copies}</Badge>
+            <Card className="mt-4 bg-muted/50">
+              <CardContent className="pt-6">
+                <div className="flex gap-4">
+                  <div className="w-24 h-32 bg-gray-200 rounded-md flex-shrink-0 overflow-hidden">
+                    {availableBooks.find(book => book._id === selectedBook)?.coverImage && (
+                      <img 
+                        src={availableBooks.find(book => book._id === selectedBook)?.coverImage} 
+                        alt="Book cover" 
+                        className="w-full h-full object-cover"
+                      />
+                    )}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Book #: {availableBooks.find(book => book._id === selectedBook)?.bookNo || 'N/A'}
-                  </p>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold">{availableBooks.find(book => book._id === selectedBook)?.title}</h3>
+                    <p className="text-sm text-muted-foreground">{availableBooks.find(book => book._id === selectedBook)?.author}</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      <Badge variant="outline" className="bg-green-50">{availableBooks.find(book => book._id === selectedBook)?.status}</Badge>
+                      <Badge variant="outline">Copies: {availableBooks.find(book => book._id === selectedBook)?.copies}</Badge>
+                      {availableBooks.find(book => book._id === selectedBook)?.category && (
+                        <Badge variant="secondary">{
+                          typeof availableBooks.find(book => book._id === selectedBook)?.category === 'object' 
+                            ? availableBooks.find(book => book._id === selectedBook)?.category.name 
+                            : availableBooks.find(book => book._id === selectedBook)?.category
+                        }</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      ISBN: {availableBooks.find(book => book._id === selectedBook)?.ISBN || 'N/A'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Book #: {availableBooks.find(book => book._id === selectedBook)?.bookNo || 'N/A'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* User Selection Section */}
-        <div className="space-y-4 pt-4 border-t">
-          <h3 className="text-lg font-semibold">User Information</h3>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="user" className="text-right">User</Label>
-            <div className="col-span-3">
-              <div className="relative">
-                <Input 
-                  placeholder="Search by name or email..." 
-                  value={userSearchTerm}
-                  onChange={(e) => handleUserSearch(e.target.value)}
-                  className="mb-2"
-                />
-                <Select 
-                  value={selectedUser || ''} 
-                  onValueChange={handleSelectUser}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select user" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {users.map(user => (
-                      <SelectItem key={user._id} value={user._id}>
-                        {user.name} ({user.email}) - {user.role}
-                      </SelectItem>
+      <div className="border-t border-border my-8"></div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <User className="h-5 w-5 text-primary" />
+            <CardTitle>User Selection</CardTitle>
+          </div>
+          <CardDescription>
+            Choose a user to issue the book to
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="userSearch">Search and Select User</Label>
+            <div className="relative">
+              <Input 
+                id="userSearch"
+                placeholder="Type to search users by name or email..." 
+                value={userSearchTerm}
+                onChange={(e) => handleUserSearch(e.target.value)}
+                className="w-full"
+              />
+              {userSearchTerm.length >= 2 && filteredUsers.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg max-h-60 overflow-auto border border-border">
+                  <div className="py-1">
+                    {filteredUsers.map((user) => (
+                      <div
+                        key={user._id}
+                        className="px-4 py-2 hover:bg-muted cursor-pointer"
+                        onClick={() => {
+                          handleSelectUser(user._id);
+                          setUserSearchTerm(user.name);
+                          setTimeout(() => setFilteredUsers([]), 100);
+                        }}
+                      >
+                        <div className="font-medium">{user.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {user.email} - {user.role}
+                        </div>
+                      </div>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </div>
+              )}
+              {userSearchTerm.length >= 2 && filteredUsers.length === 0 && !selectedUser && (
+                <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-border">
+                  <div className="px-4 py-3 text-sm text-muted-foreground">
+                    No users found matching that search
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
           {/* User Details Preview */}
           {selectedUser && (
-            <div className="ml-[calc(25%+16px)] border rounded-md p-3 bg-muted">
-              <p className="font-semibold">{users.find(user => user._id === selectedUser)?.name}</p>
-              <p className="text-sm text-muted-foreground">{users.find(user => user._id === selectedUser)?.email}</p>
-              <div className="flex gap-2 mt-1">
-                <Badge>{users.find(user => user._id === selectedUser)?.role}</Badge>
-                <Badge variant="outline">
-                  Limit: {selectedUserRole === 'teacher' ? borrowingRules.maxBooksTeacher : borrowingRules.maxBooksStudent} books
-                </Badge>
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                Currently borrowed books: {userBorrowedCount}
-              </div>
-              {userBorrowedCount > 0 && (
-                <div className="text-xs mt-1">
-                  <Button variant="link" className="p-0 h-auto text-xs" onClick={() => navigate(`/admin/transactions?user=${selectedUser}`)}>
-                    View active borrows
-                  </Button>
+            <Card className="mt-4 bg-muted/50">
+              <CardContent className="pt-6">
+                <div className="flex flex-col">
+                  <h3 className="text-lg font-semibold">{users.find(user => user._id === selectedUser)?.name}</h3>
+                  <p className="text-sm text-muted-foreground">{users.find(user => user._id === selectedUser)?.email}</p>
+                  
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Badge className={selectedUserRole === 'teacher' ? 'bg-blue-50' : 'bg-purple-50'}>
+                      {users.find(user => user._id === selectedUser)?.role}
+                    </Badge>
+                    <Badge variant="outline">
+                      Limit: {selectedUserRole === 'teacher' ? borrowingRules.maxBooksTeacher : borrowingRules.maxBooksStudent} books
+                    </Badge>
+                  </div>
+                  
+                  <div className="mt-3 flex items-center">
+                    <div className="text-sm">
+                      Currently borrowed: <span className="font-medium">{userBorrowedCount}</span> of {selectedUserRole === 'teacher' ? borrowingRules.maxBooksTeacher : borrowingRules.maxBooksStudent} books
+                    </div>
+                    
+                    {userBorrowedCount > 0 && (
+                      <Button variant="link" className="p-0 h-auto text-xs ml-2" onClick={() => navigate(`/admin/transactions?user=${selectedUser}`)}>
+                        View active borrows
+                      </Button>
+                    )}
+                  </div>
+                  
+                  {userBorrowedCount >= (selectedUserRole === 'teacher' ? borrowingRules.maxBooksTeacher : borrowingRules.maxBooksStudent) && (
+                    <div className="flex items-start gap-2 mt-3 p-2 bg-red-50 border border-red-200 rounded-md">
+                      <AlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+                      <div className="text-sm text-red-600">
+                        This user has reached their borrowing limit and cannot borrow additional books.
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </CardContent>
+            </Card>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Date Selection Section */}
-        <div className="space-y-4 pt-4 border-t">
-          <h3 className="text-lg font-semibold">Borrowing Details</h3>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="issueDate" className="text-right">Issue Date</Label>
-            <div className="col-span-3">
+      <div className="border-t border-border my-8"></div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Clock className="h-5 w-5 text-primary" />
+            <CardTitle>Borrowing Details</CardTitle>
+          </div>
+          <CardDescription>
+            Set issue and due dates for this transaction
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="issueDate">Issue Date</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
+                    id="issueDate"
                     variant="outline"
                     className="w-full justify-start text-left font-normal"
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {issueDate ? format(issueDate, 'PPP') : <span>Pick a date</span>}
+                    {issueDate ? format(issueDate, 'PPP') : <span>Select date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -469,69 +576,141 @@ export default function IssueBookPage() {
                 </PopoverContent>
               </Popover>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="dueDate"
+                    variant="outline"
+                    className="w-full justify-start text-left font-normal"
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dueDate ? format(dueDate, 'PPP') : <span>Select date</span>}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0">
+                  <Calendar
+                    mode="single"
+                    selected={dueDate}
+                    onSelect={setDueDate}
+                    initialFocus
+                    disabled={(date) => date < (issueDate || new Date())}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="dueDate" className="text-right">Due Date</Label>
-            <div className="col-span-3">
-              <div className="flex gap-4 items-center">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dueDate ? format(dueDate, 'PPP') : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={dueDate}
-                      onSelect={setDueDate}
-                      initialFocus
-                        disabled={(date) => date < (issueDate || new Date())}
-                    />
-                  </PopoverContent>
-                </Popover>
-                <div className="text-xs text-muted-foreground">
-                  <p>Based on {selectedUserRole === 'teacher' ? 'teacher' : 'student'} borrowing rules</p>
-                  <p>Loan period: {selectedUserRole === 'teacher' ? borrowingRules.maxDaysTeacher : borrowingRules.maxDaysStudent} days</p>
-                  <p>Late fee: ₹{borrowingRules.finePerDay}/day</p>
+
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="pt-6">
+              <h3 className="text-sm font-medium flex items-center gap-2 text-blue-700">
+                <Clock className="h-4 w-4" />
+                Borrowing Rules
+              </h3>
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-600">
+                <div>
+                  <p className="font-medium">Loan Period:</p>
+                  <p>{selectedUserRole === 'teacher' ? borrowingRules.maxDaysTeacher : borrowingRules.maxDaysStudent} days</p>
+                </div>
+                <div>
+                  <p className="font-medium">Borrowing Limit:</p>
+                  <p>{selectedUserRole === 'teacher' ? borrowingRules.maxBooksTeacher : borrowingRules.maxBooksStudent} books</p>
+                </div>
+                <div>
+                  <p className="font-medium">Late Fee:</p>
+                  <p>₹{borrowingRules.finePerDay}/day</p>
                 </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* Additional Notes */}
-          <div className="grid grid-cols-4 items-start gap-4">
-            <Label htmlFor="notes" className="text-right">Notes</Label>
-            <div className="col-span-3">
-              <textarea
-                id="notes"
-                className="w-full p-2 border rounded-md"
-                placeholder="Add any additional notes about this transaction..."
-                value={transactionNotes}
-                onChange={(e) => setTransactionNotes(e.target.value)}
-                rows={3}
-              ></textarea>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="notes">Transaction Notes</Label>
+            <Textarea
+              id="notes"
+              placeholder="Add any additional notes about this transaction..."
+              value={transactionNotes}
+              onChange={(e) => setTransactionNotes(e.target.value)}
+              rows={3}
+            />
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        {/* Form actions */}
-        <div className="flex justify-end gap-4 pt-4 border-t">
+      <div className="border-t border-border my-8"></div>
+
+      <Card className="mt-6 bg-gray-50">
+        <CardHeader className="pb-2">
+          <CardTitle>Transaction Summary</CardTitle>
+          <CardDescription>
+            Review the details before issuing the book
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {selectedBook ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Book:</span>
+                <span className="font-medium">{availableBooks.find(book => book._id === selectedBook)?.title}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Book:</span>
+                <span className="text-red-500">Not selected</span>
+              </div>
+            )}
+            
+            {selectedUser ? (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">User:</span>
+                <span className="font-medium">{users.find(user => user._id === selectedUser)?.name}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">User:</span>
+                <span className="text-red-500">Not selected</span>
+              </div>
+            )}
+            
+            {issueDate && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Issue Date:</span>
+                <span className="font-medium">{format(issueDate, 'PPP')}</span>
+              </div>
+            )}
+            
+            {dueDate && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Due Date:</span>
+                <span className="font-medium">{format(dueDate, 'PPP')}</span>
+              </div>
+            )}
+
+            {userBorrowedCount > 0 && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Currently Borrowed:</span>
+                <span className="font-medium">{userBorrowedCount} books</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+        <CardFooter className="flex justify-between pt-6 border-t">
           <Button variant="outline" onClick={() => navigate('/admin/transactions')}>
             Cancel
           </Button>
           <Button 
-            disabled={issuingBook || !selectedBook || !selectedUser || !issueDate || !dueDate}
             onClick={handleIssueBook}
+            disabled={issuingBook || !selectedBook || !selectedUser || !issueDate || !dueDate || 
+                      userBorrowedCount >= (selectedUserRole === 'teacher' ? borrowingRules.maxBooksTeacher : borrowingRules.maxBooksStudent)}
+            className="min-w-32"
           >
             {issuingBook ? 'Processing...' : 'Issue Book'}
           </Button>
-        </div>
-      </div>
+        </CardFooter>
+      </Card>
     </div>
   );
 } 

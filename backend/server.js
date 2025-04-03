@@ -7,8 +7,22 @@ const path = require('path');
 // Load env vars
 dotenv.config();
 
+// Import the due books check job
+const dueBooksJob = require('./jobs/checkDueBooks');
+
 // Connect to database
-connectDB();
+connectDB()
+  .then(() => {
+    console.log('MongoDB connected...');
+    
+    // Schedule the due books check to run daily at 9:00 AM
+    dueBooksJob.schedule('0 9 * * *');
+    console.log('Due books check scheduled to run daily at 9:00 AM');
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
 const app = express();
 
@@ -64,7 +78,6 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 }); 

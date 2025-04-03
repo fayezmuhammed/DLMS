@@ -295,7 +295,7 @@ const ManageReservationsPage: React.FC = () => {
         </Card>
       )}
 
-      <Card>
+      {/* <Card>
         <CardHeader>
           <CardTitle>Reservation Policy</CardTitle>
         </CardHeader>
@@ -323,7 +323,7 @@ const ManageReservationsPage: React.FC = () => {
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 };

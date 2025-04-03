@@ -44,9 +44,14 @@ export const transactionService = {
     return response.data;
   },
 
-  async returnBook(bookId: string) {
-    const response = await api.post(`/transactions/return/${bookId}`);
-    return response.data;
+  async returnBook(id: string, isTransactionId: boolean = false) {
+    if (isTransactionId) {
+      const response = await api.post(`/transactions/${id}/return`);
+      return response.data;
+    } else {
+      const response = await api.post(`/transactions/return/${id}`);
+      return response.data;
+    }
   },
 
   // Admin functionalities

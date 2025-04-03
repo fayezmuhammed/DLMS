@@ -392,13 +392,8 @@ const UserDetailPage: React.FC = () => {
                               size="sm"
                               onClick={async () => {
                                 try {
-                                  // Extract book ID
-                                  const bookId = typeof transaction.book === 'object' 
-                                    ? transaction.book._id 
-                                    : transaction.book;
-                                  
-                                  // Call return book API
-                                  const response = await transactionService.returnBook(bookId);
+                                  // Use transaction ID directly for returning book
+                                  const response = await transactionService.returnBook(transaction._id, true);
                                   
                                   if (response.success) {
                                     toast({

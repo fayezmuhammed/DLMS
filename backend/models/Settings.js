@@ -63,6 +63,38 @@ const settingsSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  
+  // Email server configuration
+  emailServer: {
+    host: {
+      type: String,
+      default: ''
+    },
+    port: {
+      type: Number,
+      default: 587
+    },
+    secure: {
+      type: Boolean,
+      default: false
+    },
+    username: {
+      type: String,
+      default: ''
+    },
+    password: {
+      type: String,
+      default: ''
+    },
+    fromAddress: {
+      type: String,
+      default: 'library@example.com'
+    },
+    fromName: {
+      type: String,
+      default: 'Library Management System'
+    }
+  },
 
   // Meta data
   updatedAt: {
