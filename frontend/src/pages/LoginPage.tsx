@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import api from '../utils/api';
+import { motion } from 'framer-motion';
 
 interface LocationState {
   message?: string;
@@ -96,104 +97,230 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     }
   };
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        when: "beforeChildren",
+        staggerChildren: 0.1,
+        duration: 0.3,
+      }
+    }
+  };
+  
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { 
+      y: 0, 
+      opacity: 1, 
+      transition: { type: "spring", stiffness: 100 }
+    }
+  };
+
+  const imageVariants = {
+    hidden: { scale: 0.8, opacity: 0 },
+    visible: { 
+      scale: 1, 
+      opacity: 1, 
+      transition: { 
+        type: "spring",
+        stiffness: 50,
+        duration: 0.8
+      }
+    }
+  };
+
+  const buttonVariants = {
+    rest: { scale: 1 },
+    hover: { scale: 1.05 },
+    tap: { scale: 0.95 }
+  };
+
   return (
-    <div className="flex h-screen bg-white">
+    <div className="flex h-screen bg-white overflow-hidden">
       {/* Left section with illustration */}
-      <div className="hidden md:flex md:w-1/2 bg-blue-50 items-center justify-center relative overflow-hidden">
-        <div className="relative w-3/4 h-3/4">
-          <div className="absolute top-0 left-0 w-full h-full">
-            <svg viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" className="opacity-30">
-              <path d="M488.5,274.5Q401,299,430.5,357.5Q460,416,396.5,439Q333,462,277,471Q221,480,161,457Q101,434,61.5,376.5Q22,319,47,254.5Q72,190,113.5,147.5Q155,105,202.5,76.5Q250,48,305,72Q360,96,424.5,112.5Q489,129,488.5,189.5Q488,250,488.5,274.5Z" fill="#a5b4fc"></path>
-            </svg>
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-center justify-center">
-              <img 
-                src="/leftsectionimage.png" 
-                alt="Person reading"
-                className="max-w-full h-auto" 
-              />
-            </div>
-          </div>
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={containerVariants}
+        className="hidden md:flex md:w-1/2 bg-gradient-to-br from-indigo-50 via-blue-50 to-indigo-100 items-center justify-center relative overflow-hidden"
+      >
+        <div className="absolute inset-0 w-full h-full">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.02, 1],
+              opacity: [0.3, 0.5, 0.3],
+              rotate: [0, 1, 0]
+            }}
+            transition={{ 
+              duration: 12, 
+              ease: "easeInOut", 
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+            className="absolute -top-1/3 -right-1/3 w-full h-full rounded-full bg-indigo-200 blur-3xl opacity-30"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.05, 1],
+              opacity: [0.2, 0.4, 0.2]
+            }}
+            transition={{ 
+              duration: 10, 
+              ease: "easeInOut", 
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+            className="absolute -bottom-1/3 -left-1/3 w-full h-full rounded-full bg-blue-200 blur-3xl opacity-20"
+          />
         </div>
-      </div>
+        
+        <div className="relative w-3/4 h-3/4 z-10 flex flex-col items-center justify-center">
+          <motion.img 
+            variants={imageVariants}
+            src="/leftsectionimage.png" 
+            alt="Person reading"
+            className="max-w-full h-auto rounded-lg shadow-lg"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.5 }}
+            className="text-center mt-8"
+          >
+            <h2 className="text-3xl font-bold text-indigo-900 font-['Playfair_Display',serif]">Welcome Back</h2>
+            <p className="mt-2 text-indigo-700 max-w-sm font-['Inter',sans-serif]">Sign in to access your account and explore our vast collection of books.</p>
+          </motion.div>
+        </div>
+      </motion.div>
       
       {/* Right section with form */}
-      <div className="w-full md:w-1/2 flex items-center justify-center p-8">
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8">
+      <motion.div 
+        initial="hidden" 
+        animate="visible" 
+        variants={containerVariants}
+        className="w-full md:w-1/2 flex items-center justify-center p-8"
+      >
+        <motion.div 
+          variants={itemVariants}
+          className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 border border-gray-100"
+        >
           {/* Tabs */}
-          <div className="flex mb-8 border-b">
-            <button className="pb-2 px-4 font-bold text-xl text-primary border-b-2 border-primary">
+          <motion.div variants={itemVariants} className="flex mb-8 border-b">
+            <motion.button 
+              whileHover={{ color: '#4f46e5' }}
+              className="pb-2 px-4 font-bold text-xl text-primary border-b-2 border-primary"
+            >
               Sign in
-            </button>
-            <Link to="/register" className="pb-2 px-4 font-bold text-xl text-gray-400 hover:text-gray-500">
-              Sign up
-            </Link>
-          </div>
+            </motion.button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Link to="/register" className="pb-2 px-4 font-bold text-xl text-gray-400 hover:text-gray-500 transition-colors">
+                Sign up
+              </Link>
+            </motion.div>
+          </motion.div>
           
           {error && (
-            <div className="mb-6 p-3 bg-red-50 text-red-700 rounded-md text-sm">
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="mb-6 p-3 bg-red-50 text-red-700 rounded-md text-sm border-l-4 border-red-500"
+            >
               {error}
-            </div>
+            </motion.div>
           )}
           
           {successMessage && (
-            <div className="mb-6 p-3 bg-green-50 text-green-700 rounded-md text-sm">
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="mb-6 p-3 bg-green-50 text-green-700 rounded-md text-sm border-l-4 border-green-500"
+            >
               {successMessage}
-            </div>
+            </motion.div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-md font-medium text-primary mb-2">
-                Name
+          <motion.form 
+            onSubmit={handleSubmit} 
+            className="space-y-6"
+          >
+            <motion.div variants={itemVariants}>
+              <label className="block text-md font-medium text-gray-700 mb-2">
+                Email
               </label>
-              <input
+              <motion.input
+                whileFocus={{ scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 300 }}
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all duration-200"
                 placeholder="Email address"
                 required
               />
-            </div>
+            </motion.div>
             
-            <div>
-              <label className="block text-md font-medium text-primary mb-2">
+            <motion.div variants={itemVariants}>
+              <label className="block text-md font-medium text-gray-700 mb-2">
                 Password
               </label>
-              <input
+              <motion.input
+                whileFocus={{ scale: 1.01 }}
+                transition={{ type: "spring", stiffness: 300 }}
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition-all duration-200"
                 placeholder="Password"
                 required
               />
               <div className="flex justify-end mt-1">
-                <Link to="/forgot-password" className="text-sm text-gray-400 hover:text-gray-600">
-                  Forgot password?
-                </Link>
+                <motion.div whileHover={{ x: 3 }} transition={{ type: "spring", stiffness: 300 }}>
+                  <Link to="/forgot-password" className="text-sm text-gray-400 hover:text-primary">
+                    Forgot password?
+                  </Link>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
             
-            <button
+            <motion.button
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-colors"
+              className="w-full py-3 px-4 bg-primary hover:bg-primary/90 text-primary-foreground font-medium rounded-lg transition-all duration-300 shadow-md hover:shadow-lg transform"
             >
-              {isLoading ? 'Signing in...' : 'Sign in'}
-            </button>
+              {isLoading ? (
+                <div className="flex items-center justify-center">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    className="w-5 h-5 border-2 border-white border-t-transparent rounded-full mr-2"
+                  ></motion.div>
+                  Signing in...
+                </div>
+              ) : 'Sign in'}
+            </motion.button>
             
-            <div className="flex justify-center items-center space-x-2 pt-4">
+            <motion.div 
+              variants={itemVariants}
+              className="flex justify-center items-center space-x-2 pt-4"
+            >
               <span className="text-gray-500">Don't have an account?</span>
-              <Link to="/register" className="text-primary hover:underline font-medium">
-                Sign up
-              </Link>
-            </div>
-          </form>
-        </div>
-      </div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Link to="/register" className="text-primary hover:underline font-medium">
+                  Sign up
+                </Link>
+              </motion.div>
+            </motion.div>
+          </motion.form>
+        </motion.div>
+      </motion.div>
     </div>
   );
 };

@@ -218,22 +218,22 @@ const ManageReservationsPage: React.FC = () => {
                   <TableRow key={reservation._id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{reservation.user.name}</div>
-                        <div className="text-xs text-muted-foreground">{reservation.user.email}</div>
+                        <div className="font-medium">{reservation.user?.name || 'Unknown User'}</div>
+                        <div className="text-xs text-muted-foreground">{reservation.user?.email || 'No email'}</div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-3">
                         <div className="h-12 w-8 overflow-hidden rounded">
                           <img 
-                            src={reservation.book.coverImage || reservation.book.image || reservation.book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
-                            alt={reservation.book.title} 
+                            src={reservation.book?.coverImage || reservation.book?.image || reservation.book?.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
+                            alt={reservation.book?.title || 'Unknown Book'} 
                             className="h-full w-full object-cover"
                           />
                         </div>
                         <div>
-                          <div className="font-medium">{reservation.book.title}</div>
-                          <div className="text-xs text-muted-foreground">{reservation.book.author}</div>
+                          <div className="font-medium">{reservation.book?.title || 'Unknown Book'}</div>
+                          <div className="text-xs text-muted-foreground">{reservation.book?.author || 'Unknown Author'}</div>
                         </div>
                       </div>
                     </TableCell>
@@ -246,11 +246,11 @@ const ManageReservationsPage: React.FC = () => {
                             ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1)}
+                        {(reservation.status || 'unknown').charAt(0).toUpperCase() + (reservation.status || 'unknown').slice(1)}
                       </span>
                     </TableCell>
                     <TableCell>
-                      {reservation.status === 'active' && (
+                      {reservation.status === 'active' && reservation.expiresAt && (
                         <div className="flex items-center">
                           <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
                           <span className={
@@ -262,10 +262,13 @@ const ManageReservationsPage: React.FC = () => {
                           </span>
                         </div>
                       )}
-                      {reservation.status !== 'active' && (
+                      {(reservation.status !== 'active' && reservation.expiresAt) && (
                         <span className="text-muted-foreground text-sm">
                           {formatDate(reservation.expiresAt)}
                         </span>
+                      )}
+                      {!reservation.expiresAt && (
+                        <span className="text-muted-foreground text-sm">Not available</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">
