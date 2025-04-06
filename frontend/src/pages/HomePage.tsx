@@ -300,7 +300,7 @@ const HomePage: React.FC = () => {
           >
             <h2 className="text-3xl font-bold text-gray-900 font-['Playfair_Display',serif]">Featured Books</h2>
             <div className="w-20 h-1 bg-indigo-600 mt-2 mb-3 rounded-full"></div>
-            <p className="text-gray-600 mt-2 font-['Inter',sans-serif]">Handpicked selections from our collection</p>
+            {/* <p className="text-gray-600 mt-2 font-['Inter',sans-serif]">Handpicked selections from our collection</p> */}
           </motion.div>
           
           {loading ? (
@@ -398,7 +398,7 @@ const HomePage: React.FC = () => {
         <div className="max-w-7xl mx-auto">
           <div className="mb-12">
             <h2 className="text-3xl font-bold text-gray-900">New Arrivals</h2>
-            <p className="text-gray-600 mt-2">The latest additions to our library</p>
+            {/* <p className="text-gray-600 mt-2">The latest additions to our library</p> */}
           </div>
           
           {loading ? (
@@ -437,7 +437,7 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* Services Section */}
-      <motion.section 
+      {/* <motion.section 
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
@@ -515,7 +515,7 @@ const HomePage: React.FC = () => {
             </motion.div>
           </motion.div>
         </div>
-      </motion.section>
+      </motion.section> */}
 
       {/* CTA Section */}
       <motion.section 
@@ -557,7 +557,7 @@ const HomePage: React.FC = () => {
                   transition={{ delay: 0.4, duration: 0.5 }}
                   className="text-indigo-100 mt-4 mb-8 font-['Inter',sans-serif]"
                 >
-                  Join our community of readers today and gain access to thousands of books.
+                  {/* Join our community of readers today and gain access to thousands of books. */}
                 </motion.p>
                 <motion.div 
                   initial={{ opacity: 0, y: 20 }}
