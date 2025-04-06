@@ -57,10 +57,31 @@ const userSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
+}, {
+    toJSON: { 
+        virtuals: true,
+        transform: function(doc, ret) {
+            // Ensure admissionNumber and batch are always included
+            if (ret.admissionNumber === undefined) ret.admissionNumber = null;
+            if (ret.batch === undefined) ret.batch = null;
+            return ret;
+        }
+    },
+    toObject: { virtuals: true }
 });
 
 // Encrypt password using bcrypt
 userSchema.pre('save', async function(next) {
+    // If admissionNumber is an empty string, set it to null
+    if (this.admissionNumber === '') {
+        this.admissionNumber = null;
+    }
+    
+    // If batch is an empty string, set it to null
+    if (this.batch === '') {
+        this.batch = null;
+    }
+    
     if (!this.isModified('password')) {
         next();
     }

@@ -257,8 +257,8 @@ const HomePage: React.FC = () => {
                 className="relative aspect-square max-w-md mx-auto"
               >
                 <img 
-                  src="/images/library-illustration.svg" 
-                  alt="Library Illustration" 
+                  src="/images/library-illustration.jpeg" 
+                  alt="Carmel College of Engineering" 
                   className="object-contain"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;

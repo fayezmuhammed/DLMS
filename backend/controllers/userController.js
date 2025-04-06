@@ -6,17 +6,27 @@ const bcrypt = require('bcryptjs');
 // @access  Private/Admin
 exports.getUsers = async (req, res) => {
     try {
-        // Explicitly select all fields including admissionNumber and batch
-        const users = await User.find().select('name email role admissionNumber batch createdAt');
+        // Use lean() to get plain JavaScript objects and select all fields explicitly
+        const users = await User.find()
+            .select('name email role admissionNumber batch createdAt')
+            .lean();
         
         // Debug log for the server
-        console.log('Users data from DB:', users.slice(0, 2));
+        console.log('Users data from DB:', JSON.stringify(users.slice(0, 2), null, 2));
+        
+        // Ensure admissionNumber and batch are always included even if null
+        const processedUsers = users.map(user => ({
+            ...user,
+            admissionNumber: user.admissionNumber || null,
+            batch: user.batch || null
+        }));
         
         res.json({
             success: true,
-            data: users
+            data: processedUsers
         });
     } catch (error) {
+        console.error('Error in getUsers:', error);
         res.status(500).json({
             success: false,
             message: error.message
@@ -67,7 +77,7 @@ exports.createUser = async (req, res) => {
         }
         
         // Check if admission number is already in use (for students)
-        if (admissionNumber && (role === 'Student' || role === 'student')) {
+        if (admissionNumber && admissionNumber.trim() !== '' && (role === 'Student' || role === 'student')) {
             const admissionExists = await User.findOne({ admissionNumber });
             if (admissionExists) {
                 return res.status(400).json({
@@ -87,8 +97,15 @@ exports.createUser = async (req, res) => {
         
         // Only add student-specific fields if role is student
         if (role === 'Student' || role === 'student') {
-            if (admissionNumber) userData.admissionNumber = admissionNumber;
-            if (batch) userData.batch = batch;
+            // Only set admissionNumber if it's not empty
+            if (admissionNumber && admissionNumber.trim() !== '') {
+                userData.admissionNumber = admissionNumber;
+            }
+            
+            // Only set batch if it's not empty
+            if (batch && batch.trim() !== '') {
+                userData.batch = batch;
+            }
         }
         
         const user = await User.create(userData);
@@ -122,7 +139,7 @@ exports.updateUser = async (req, res) => {
         }
         
         // Check if admission number is changed and already in use
-        if (admissionNumber && admissionNumber !== user.admissionNumber && 
+        if (admissionNumber && admissionNumber.trim() !== '' && admissionNumber !== user.admissionNumber && 
             (role === 'Student' || role === 'student' || user.role === 'student')) {
             const admissionExists = await User.findOne({ 
                 admissionNumber,
@@ -150,8 +167,25 @@ exports.updateUser = async (req, res) => {
         
         // Update student-specific fields
         if (role === 'Student' || role === 'student' || user.role === 'student') {
-            if (admissionNumber !== undefined) user.admissionNumber = admissionNumber;
-            if (batch !== undefined) user.batch = batch;
+            // Handle admissionNumber
+            if (admissionNumber !== undefined) {
+                // If empty string, set to null or undefined based on schema
+                if (admissionNumber.trim() === '') {
+                    user.admissionNumber = undefined;
+                } else {
+                    user.admissionNumber = admissionNumber;
+                }
+            }
+            
+            // Handle batch
+            if (batch !== undefined) {
+                // If empty string, set to null or undefined based on schema
+                if (batch.trim() === '') {
+                    user.batch = undefined;
+                } else {
+                    user.batch = batch;
+                }
+            }
         } else {
             // Remove student fields if role is changed to non-student
             user.admissionNumber = undefined;

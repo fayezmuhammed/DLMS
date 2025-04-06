@@ -514,7 +514,7 @@ const NoDuePage = () => {
                   >
                     <div className="text-center mb-8">
                       <h2 className="text-2xl font-bold uppercase">No Due Certificate</h2>
-                      <p className="text-lg mt-2">Library Department</p>
+                      <p className="text-lg mt-2">Library Dept of CSE</p>
                       <div className="border-b-2 border-gray-300 w-1/2 mx-auto mt-4"></div>
                     </div>
                     
@@ -524,20 +524,17 @@ const NoDuePage = () => {
                       <p className="mb-2">Admission Number: <span className="font-semibold">{student.admissionNumber}</span></p>
                       <p className="mb-8">Batch: <span className="font-semibold">{student.batch}</span></p>
                       <p className="text-lg">has <span className="font-bold underline">NO OUTSTANDING DUES</span> in the library.</p>
-                      <p className="mt-6">This certificate is issued upon request for official purposes.</p>
                     </div>
 
                     <div className="mt-24">
                       <div className="flex justify-between">
                         <div>
                           <div className="border-t-2 border-black w-32"></div>
-                          <p className="font-bold mt-2">Head Librarian</p>
-                          <p>Library Department</p>
+                          <p className="font-bold mt-2">Librarian</p>
                         </div>
                         <div>
                           <div className="border-t-2 border-black w-32"></div>
-                          <p className="font-bold mt-2">Principal</p>
-                          <p>School Seal</p>
+                          <p className="font-bold mt-2">HOD CSE</p>
                         </div>
                       </div>
                       <div className="text-right mt-8">

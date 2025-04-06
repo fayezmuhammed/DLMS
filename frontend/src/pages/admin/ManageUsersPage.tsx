@@ -14,8 +14,8 @@ interface User {
   name: string;
   email: string;
   role: string;
-  batch?: string | null;
-  admissionNumber?: string;
+  batch: string | null;
+  admissionNumber: string | null;
   joinedOn: string;
   createdAt: string;
   [key: string]: any; // Add index signature to allow dynamic property access
@@ -31,7 +31,7 @@ const ManageUsersPage: React.FC = () => {
     name: '',
     email: '',
     role: 'Student',
-    batch: null,
+    batch: '',
     admissionNumber: ''
   });
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -52,13 +52,13 @@ const ManageUsersPage: React.FC = () => {
         // Transform the data if needed to ensure proper property access
         const transformedUsers = response.data.data.map((user: any) => {
           // Log each user object to debug
-          console.log('User data:', user);
+          console.log('User data:', JSON.stringify(user, null, 2));
           
           return {
             ...user,
             // Ensure properties exist with fallbacks
-            admissionNumber: user.admissionNumber || null,
-            batch: user.batch || null
+            admissionNumber: user.admissionNumber === undefined ? null : user.admissionNumber,
+            batch: user.batch === undefined ? null : user.batch
           };
         });
         
@@ -68,8 +68,10 @@ const ManageUsersPage: React.FC = () => {
         );
         
         if (students.length > 0) {
-          console.log('First student with data:', students[0]);
+          console.log('First student with data:', JSON.stringify(students[0], null, 2));
+          console.log('Admission number exists:', students[0].hasOwnProperty('admissionNumber'));
           console.log('Admission number:', students[0].admissionNumber);
+          console.log('Batch exists:', students[0].hasOwnProperty('batch'));
           console.log('Batch:', students[0].batch);
         }
         
@@ -91,9 +93,12 @@ const ManageUsersPage: React.FC = () => {
 
   const handleAddUser = async () => {
     try {
+      // Ensure we're not sending null values for admissionNumber and batch
       const userData = {
         ...newUser,
         password: 'defaultpassword123', // Default password that user will be asked to change
+        admissionNumber: newUser.admissionNumber || '',
+        batch: newUser.batch || ''
       };
 
       const response = await api.post('/users', userData);
@@ -112,7 +117,7 @@ const ManageUsersPage: React.FC = () => {
           name: '',
           email: '',
           role: 'Student',
-          batch: null,
+          batch: '',
           admissionNumber: ''
         });
         setIsAddDialogOpen(false);
@@ -363,12 +368,12 @@ const ManageUsersPage: React.FC = () => {
                       <td className="py-3 px-4">{user.role}</td>
                       <td className="py-3 px-4">
                         {user.role.toLowerCase() === 'student' ? 
-                          (user.admissionNumber ? user.admissionNumber : '(Not set)') : 
+                          (user.admissionNumber !== null && user.admissionNumber !== undefined ? user.admissionNumber : '(Not set)') : 
                           '-'}
                       </td>
                       <td className="py-3 px-4">
                         {user.role.toLowerCase() === 'student' ? 
-                          (user.batch ? user.batch : '(Not set)') : 
+                          (user.batch !== null && user.batch !== undefined ? user.batch : '(Not set)') : 
                           '-'}
                       </td>
                       <td className="py-3 px-4">{user.createdAt ? formatDate(user.createdAt) : '-'}</td>
