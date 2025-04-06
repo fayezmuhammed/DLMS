@@ -1,48 +1,43 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 require('dotenv').config();
 
 const User = require('../models/User');
 
 async function createAdminUser() {
     try {
+        // Connect to MongoDB
         await mongoose.connect("mongodb+srv://admin:admin123@cluster0.g45sf.mongodb.net/lms");
         console.log('Connected to MongoDB');
 
-        // Force remove any existing admin user
-        await User.deleteOne({ email: 'fayezmuhammed24@gmail.com' });
-        console.log('Cleared any existing admin user');
+        // Admin credentials
+        // email: admin@dlms.com
+        // password: Admin@123
 
-        // Simple credentials for testing
-        const adminEmail = 'fayezmuhammed24@gmail.com';
-        const adminPassword = 'fayez123';
+        // Check if admin user already exists
+        const adminExists = await User.findOne({ email: 'admin@dlms.com' });
+        if (adminExists) {
+            console.log('Admin user already exists');
+            process.exit(0);
+        }
 
-        // Create admin user - let the model pre-save hook handle password hashing
+        // Create admin user
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash('Admin@123', salt);
+
         const adminUser = new User({
-            name: 'Admin',
-            email: adminEmail,
-            password: adminPassword,
+            name: 'Admin User',
+            email: 'admin@dlms.com',
+            password: hashedPassword,
             role: 'admin',
-            isVerified: true, // Admin is automatically verified
             createdAt: new Date()
         });
 
         await adminUser.save();
-
-        // Verify the user was created correctly
-        const verifyUser = await User.findOne({ email: adminEmail });
-        if (!verifyUser) {
-            throw new Error('Failed to create admin user');
-        }
-
-        console.log('Admin user created and verified:');
-        console.log('Email:', adminEmail);
-        console.log('Password:', adminPassword);
-        console.log('Role:', verifyUser.role);
-        console.log('Verified:', verifyUser.isVerified);
-
+        console.log('Admin user created successfully');
         process.exit(0);
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error creating admin user:', error);
         process.exit(1);
     }
 }

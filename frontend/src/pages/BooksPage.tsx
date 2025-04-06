@@ -5,12 +5,18 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Book, Category, bookService } from '@/services/bookService';
+import { ArrowRight } from 'lucide-react';
+import { transactionService } from '@/services/transactionService';
 
 // Interface for Book type is now imported from bookService
 // Interface for Category type is now imported from bookService
 
+interface BookWithAvailability extends Book {
+  availableCopies?: number;
+}
+
 const BooksPage: React.FC = () => {
-  const [books, setBooks] = useState<Book[]>([]);
+  const [books, setBooks] = useState<BookWithAvailability[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -26,7 +32,49 @@ const BooksPage: React.FC = () => {
         
         // Fetch books
         const booksResponse = await bookService.getBooks();
-        setBooks(booksResponse.data || []);
+        
+        if (booksResponse.data) {
+          // Fetch transaction data for each book to calculate available copies
+          const booksWithAvailability = await Promise.all(
+            booksResponse.data.map(async (book: Book) => {
+              try {
+                // Get active transactions for this book
+                const transactionsResponse = await transactionService.getBookTransactions(book._id);
+                
+                if (transactionsResponse.success) {
+                  // Count active transactions (borrowed or overdue)
+                  const activeTransactions = transactionsResponse.data.filter(
+                    (tx: { status: string }) => tx.status === 'borrowed' || tx.status === 'overdue'
+                  ).length;
+                  
+                  // Calculate available copies
+                  const availableCopies = Math.max(0, book.copies - activeTransactions);
+                  
+                  return {
+                    ...book,
+                    availableCopies
+                  };
+                }
+                
+                // Fallback if transaction data can't be fetched
+                return {
+                  ...book,
+                  availableCopies: book.copies
+                };
+              } catch (err) {
+                console.error(`Error fetching transactions for book ${book._id}:`, err);
+                return {
+                  ...book,
+                  availableCopies: book.copies
+                };
+              }
+            })
+          );
+          
+          setBooks(booksWithAvailability);
+        } else {
+          setBooks([]);
+        }
         
         // Fetch categories
         const categoriesResponse = await bookService.getCategories();
@@ -175,10 +223,11 @@ const BooksPage: React.FC = () => {
                 <p className="text-xs text-muted-foreground mb-4 line-clamp-2">
                   {book.description || 'No description available.'}
                 </p>
-                <div className="mt-auto">
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link to={`/books/${book._id}`}>View Details</Link>
-                  </Button>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-500">{book.availableCopies} of {book.copies} copies available</span>
+                  <Link to={`/books/${book._id}`} className="text-indigo-600 hover:text-indigo-500 flex items-center gap-1 text-sm font-medium">
+                    View Details <ArrowRight className="w-4 h-4" />
+                  </Link>
                 </div>
               </CardContent>
             </Card>
