@@ -272,7 +272,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
       
       <footer className="bg-gradient-to-r from-indigo-900 to-indigo-800 text-white mt-auto">
         <div className="container mx-auto px-4 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div className="space-y-4">
               <Link to="/" className="flex items-center gap-2">
                 <span className="text-2xl font-bold font-['Playfair_Display',serif] tracking-wide">
@@ -384,7 +384,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                 </li>
               </ul>
             </div>
-          </div>
+          </div> */}
           
           <div className="mt-12 pt-8 border-t border-indigo-800/50 flex flex-col md:flex-row justify-between items-center text-indigo-200">
             <p>&copy; {new Date().getFullYear()} BookHive Library Management System. All rights reserved.</p>
