@@ -1,12 +1,9 @@
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
-const User = require('../models/User');
+require('dotenv').config();
 
-// Load environment variables
-dotenv.config();
+console.log('Starting migration...');
 
-// Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://admin:admin123@cluster0.g45sf.mongodb.net/lms", {
+mongoose.connect(process.env.MONGODB_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 })
@@ -43,4 +40,4 @@ mongoose.connect(process.env.MONGODB_URI || "mongodb+srv://admin:admin123@cluste
 .catch(err => {
     console.error('Error connecting to MongoDB:', err);
     process.exit(1);
-}); 
+});

@@ -74,9 +74,7 @@ const checkDueBooks = async () => {
 // If run directly (node checkDueBooks.js)
 if (require.main === module) {
   // Connect to MongoDB
-  const mongoURI = process.env.MONGO_URI || "mongodb+srv://admin:admin123@cluster0.g45sf.mongodb.net/lms";
-  
-  mongoose.connect(mongoURI)
+  mongoose.connect(process.env.MONGODB_URI)
     .then(async () => {
       logger.info('MongoDB connected for due books check');
       
@@ -117,4 +115,4 @@ module.exports = {
       await checkDueBooks();
     });
   }
-}; 
+};

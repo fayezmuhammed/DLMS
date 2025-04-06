@@ -7,7 +7,7 @@ const User = require('../models/User');
 async function createAdminUser() {
     try {
         // Connect to MongoDB
-        await mongoose.connect("mongodb+srv://admin:admin123@cluster0.g45sf.mongodb.net/lms");
+        await mongoose.connect(process.env.MONGODB_URI);
         console.log('Connected to MongoDB');
 
         // Admin credentials
@@ -35,6 +35,7 @@ async function createAdminUser() {
 
         await adminUser.save();
         console.log('Admin user created successfully');
+        await mongoose.connection.close();
         process.exit(0);
     } catch (error) {
         console.error('Error creating admin user:', error);

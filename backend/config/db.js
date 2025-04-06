@@ -4,7 +4,7 @@ const mongoose = require('mongoose');
 const connectDB = async () => {
     console.log(JsonWebTokenError)
     try {
-        const conn = await mongoose.connect("mongodb+srv://admin:admin123@cluster0.g45sf.mongodb.net/lms");
+        const conn = await mongoose.connect(process.env.MONGODB_URI);
         console.log(`MongoDB Connected: ${conn.connection.host}`);
 
     } catch (error) {
@@ -13,4 +13,4 @@ const connectDB = async () => {
     }
 };
 
-module.exports = connectDB; // Example of correct MongoDB connection
+module.exports = connectDB;
