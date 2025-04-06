@@ -93,7 +93,7 @@ router.get('/', protect, authorize('admin'), getAllTransactions);
 router.get('/active', protect, authorize('admin'), getActiveTransactions);
 router.get('/overdue', protect, authorize('admin'), getOverdueTransactions);
 router.get('/student-dues/:userId', protect, authorize('admin'), getStudentDues);
-router.get('/book/:bookId', protect, authorize('admin'), getBookTransactions);
+router.get('/book/:bookId', protect, getBookTransactions);
 router.post('/issue', protect, authorize('admin'), issueBook);
 
 // User-specific transaction endpoints (admin only)
