@@ -131,7 +131,7 @@ npm test
 
 ## License
 
-ISC License
+MIT License
 
 ## Acknowledgments
 
