@@ -131,10 +131,4 @@ npm test
 
 ## License
 
-ISC License
-
-## Acknowledgments
-
-- Material UI for the component library
-- Radix UI for accessible components
-- TailwindCSS for utility-first styling
+MIT License
