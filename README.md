@@ -107,7 +107,7 @@ npm test
 
 ## Project Structure
 
-- `backend/` - Express server and API
+- `backend/` - Express server and Api
   - `controllers/` - Request handlers
   - `models/` - Database models
   - `routes/` - API routes
