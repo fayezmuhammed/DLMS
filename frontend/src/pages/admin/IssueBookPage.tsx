@@ -358,15 +358,6 @@ export default function IssueBookPage() {
                           setTimeout(() => setFilteredBooks([]), 100);
                         }}
                       >
-                        <div className="h-10 w-8 bg-gray-200 rounded flex-shrink-0 overflow-hidden">
-                          {book.coverImage && (
-                            <img 
-                              src={book.coverImage} 
-                              alt="" 
-                              className="h-full w-full object-cover"
-                            />
-                          )}
-                        </div>
                         <div>
                           <div className="font-medium">{book.title}</div>
                           <div className="text-xs text-muted-foreground">by {book.author}</div>
@@ -390,37 +381,26 @@ export default function IssueBookPage() {
           {selectedBook && (
             <Card className="mt-4 bg-muted/50">
               <CardContent className="pt-6">
-                <div className="flex gap-4">
-                  <div className="w-24 h-32 bg-gray-200 rounded-md flex-shrink-0 overflow-hidden">
-                    {availableBooks.find(book => book._id === selectedBook)?.coverImage && (
-                      <img 
-                        src={availableBooks.find(book => book._id === selectedBook)?.coverImage} 
-                        alt="Book cover" 
-                        className="w-full h-full object-cover"
-                      />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">{availableBooks.find(book => book._id === selectedBook)?.title}</h3>
+                  <p className="text-sm text-muted-foreground">{availableBooks.find(book => book._id === selectedBook)?.author}</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <Badge variant="outline" className="bg-green-50">{availableBooks.find(book => book._id === selectedBook)?.status}</Badge>
+                    <Badge variant="outline">Copies: {availableBooks.find(book => book._id === selectedBook)?.copies}</Badge>
+                    {availableBooks.find(book => book._id === selectedBook)?.category && (
+                      <Badge variant="secondary">{
+                        typeof availableBooks.find(book => book._id === selectedBook)?.category === 'object' 
+                          ? availableBooks.find(book => book._id === selectedBook)?.category.name 
+                          : availableBooks.find(book => book._id === selectedBook)?.category
+                      }</Badge>
                     )}
                   </div>
-                  <div className="flex-1">
-                    <h3 className="text-lg font-semibold">{availableBooks.find(book => book._id === selectedBook)?.title}</h3>
-                    <p className="text-sm text-muted-foreground">{availableBooks.find(book => book._id === selectedBook)?.author}</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <Badge variant="outline" className="bg-green-50">{availableBooks.find(book => book._id === selectedBook)?.status}</Badge>
-                      <Badge variant="outline">Copies: {availableBooks.find(book => book._id === selectedBook)?.copies}</Badge>
-                      {availableBooks.find(book => book._id === selectedBook)?.category && (
-                        <Badge variant="secondary">{
-                          typeof availableBooks.find(book => book._id === selectedBook)?.category === 'object' 
-                            ? availableBooks.find(book => book._id === selectedBook)?.category.name 
-                            : availableBooks.find(book => book._id === selectedBook)?.category
-                        }</Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-2">
-                      ISBN: {availableBooks.find(book => book._id === selectedBook)?.ISBN || 'N/A'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Book #: {availableBooks.find(book => book._id === selectedBook)?.bookNo || 'N/A'}
-                    </p>
-                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    ISBN: {availableBooks.find(book => book._id === selectedBook)?.ISBN || 'N/A'}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Book #: {availableBooks.find(book => book._id === selectedBook)?.bookNo || 'N/A'}
+                  </p>
                 </div>
               </CardContent>
             </Card>

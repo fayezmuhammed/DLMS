@@ -162,13 +162,6 @@ const ReservationsPage: React.FC = () => {
                   <TableRow key={reservation._id}>
                     <TableCell>
                       <div className="flex items-center space-x-3">
-                        <div className="h-12 w-8 overflow-hidden rounded">
-                          <img 
-                            src={(reservation.book as Book).coverImage || (reservation.book as Book).image || (reservation.book as Book).imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
-                            alt={(reservation.book as Book).title} 
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
                         <div>
                           <Link to={`/books/${(reservation.book as Book)._id}`} className="font-medium hover:underline">
                             {(reservation.book as Book).title}

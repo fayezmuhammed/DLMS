@@ -223,18 +223,9 @@ const ManageReservationsPage: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center space-x-3">
-                        <div className="h-12 w-8 overflow-hidden rounded">
-                          <img 
-                            src={reservation.book?.coverImage || reservation.book?.image || reservation.book?.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
-                            alt={reservation.book?.title || 'Unknown Book'} 
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <div>
-                          <div className="font-medium">{reservation.book?.title || 'Unknown Book'}</div>
-                          <div className="text-xs text-muted-foreground">{reservation.book?.author || 'Unknown Author'}</div>
-                        </div>
+                      <div>
+                        <div className="font-medium">{reservation.book?.title || 'Unknown Book'}</div>
+                        <div className="text-xs text-muted-foreground">{reservation.book?.author || 'Unknown Author'}</div>
                       </div>
                     </TableCell>
                     <TableCell>{formatDate(reservation.reservedAt)}</TableCell>

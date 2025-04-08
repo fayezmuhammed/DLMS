@@ -263,55 +263,46 @@ const TransactionsPage: React.FC = () => {
               return (
                 <Card key={transaction._id} className="overflow-hidden">
                   <CardContent className="p-6">
-                    <div className="flex gap-6">
-                      <div className="w-32 h-48 flex-shrink-0">
-                        <img
-                          src={book?.coverImage || 'https://placehold.co/400x600?text=No+Cover'}
-                          alt={book?.title || 'Book cover'}
-                          className="w-full h-full object-cover rounded-md"
-                        />
+                    <div className="flex-grow space-y-4">
+                      <div>
+                        <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
+                        <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
                       </div>
-                      <div className="flex-grow space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
-                          <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
+                          <p className="text-sm text-muted-foreground">Borrow Date</p>
+                          <p className="font-medium">{formatDate(transaction.issueDate)}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Borrow Date</p>
-                            <p className="font-medium">{formatDate(transaction.issueDate)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Due Date</p>
-                            <p className="font-medium">{formatDate(transaction.dueDate)}</p>
-                          </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Due Date</p>
+                          <p className="font-medium">{formatDate(transaction.dueDate)}</p>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <Badge className={getStatusColor(transaction.status)}>
-                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                          </Badge>
-                          {transaction.status === 'borrowed' && (
-                            <div className="text-sm">
-                              {calculateDaysLeft(transaction.dueDate)} days remaining
-                            </div>
-                          )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Badge className={getStatusColor(transaction.status)}>
+                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                        </Badge>
+                        {transaction.status === 'borrowed' && (
+                          <div className="text-sm">
+                            {calculateDaysLeft(transaction.dueDate)} days remaining
+                          </div>
+                        )}
+                        {transaction.status === 'overdue' && (
+                          <div className="text-sm text-red-600">
+                            {calculateDaysOverdue(transaction.dueDate)} days overdue
+                            <span className="block font-medium">Fine: ₹{calculateFine(transaction.dueDate).toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
                           {transaction.status === 'overdue' && (
-                            <div className="text-sm text-red-600">
-                              {calculateDaysOverdue(transaction.dueDate)} days overdue
-                              <span className="block font-medium">Fine: ₹{calculateFine(transaction.dueDate).toFixed(2)}</span>
-                            </div>
+                            <Button 
+                              variant="secondary"
+                              className="bg-blue-100 hover:bg-blue-200 text-blue-800"
+                              onClick={() => handlePayFine(transaction._id, calculateFine(transaction.dueDate))}
+                            >
+                              Pay Fine
+                            </Button>
                           )}
-                          <div className="flex gap-2">
-                            {transaction.status === 'overdue' && (
-                              <Button 
-                                variant="secondary"
-                                className="bg-blue-100 hover:bg-blue-200 text-blue-800"
-                                onClick={() => handlePayFine(transaction._id, calculateFine(transaction.dueDate))}
-                              >
-                                Pay Fine
-                              </Button>
-                            )}
-                          </div>
                         </div>
                       </div>
                     </div>
@@ -333,40 +324,31 @@ const TransactionsPage: React.FC = () => {
               return (
                 <Card key={transaction._id} className="overflow-hidden">
                   <CardContent className="p-6">
-                    <div className="flex gap-6">
-                      <div className="w-32 h-48 flex-shrink-0">
-                        <img
-                          src={book?.coverImage || 'https://placehold.co/400x600?text=No+Cover'}
-                          alt={book?.title || 'Book cover'}
-                          className="w-full h-full object-cover rounded-md"
-                        />
+                    <div className="flex-grow space-y-4">
+                      <div>
+                        <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
+                        <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
                       </div>
-                      <div className="flex-grow space-y-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
-                          <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
+                          <p className="text-sm text-muted-foreground">Borrow Date</p>
+                          <p className="font-medium">{formatDate(transaction.issueDate)}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Borrow Date</p>
-                            <p className="font-medium">{formatDate(transaction.issueDate)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Return Date</p>
-                            <p className="font-medium">{transaction.returnDate ? formatDate(transaction.returnDate) : 'N/A'}</p>
-                          </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">Return Date</p>
+                          <p className="font-medium">{transaction.returnDate ? formatDate(transaction.returnDate) : 'N/A'}</p>
                         </div>
-                        <div className="flex items-center justify-between">
-                          <Badge className={getStatusColor(transaction.status)}>
-                            {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                          </Badge>
-                          <Button 
-                            variant="outline"
-                            onClick={() => handleBorrowAgain(typeof transaction.book === 'object' ? transaction.book._id : transaction.book)}
-                          >
-                            Borrow Again
-                          </Button>
-                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Badge className={getStatusColor(transaction.status)}>
+                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                        </Badge>
+                        <Button 
+                          variant="outline"
+                          onClick={() => handleBorrowAgain(typeof transaction.book === 'object' ? transaction.book._id : transaction.book)}
+                        >
+                          Borrow Again
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
