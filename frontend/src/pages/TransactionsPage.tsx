@@ -22,6 +22,7 @@ const TransactionsPage: React.FC = () => {
     finePerDay: 0.5
   });
   const [userRole, setUserRole] = useState<string>('student');
+  const [returningId, setReturningId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -225,6 +226,39 @@ const TransactionsPage: React.FC = () => {
     );
   };
 
+  // Handle returning a book
+  const handleReturnBook = async (transactionId: string) => {
+    try {
+      setReturningId(transactionId);
+      
+      const response = await transactionService.returnBook(transactionId, true);
+      
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Book has been returned successfully.",
+        });
+        // Refresh the transactions list
+        fetchTransactions();
+      } else {
+        toast({
+          title: "Failed to return book",
+          description: response.message || "Please try again later.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      console.error('Error returning book:', err);
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to return the book. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setReturningId(null);
+    }
+  };
+
   if (loading) {
     return <div className="text-center py-12">Loading transactions...</div>;
   }
@@ -295,12 +329,30 @@ const TransactionsPage: React.FC = () => {
                         )}
                         <div className="flex gap-2">
                           {transaction.status === 'overdue' && (
+                            <>
+                              <Button 
+                                variant="secondary"
+                                className="bg-blue-100 hover:bg-blue-200 text-blue-800"
+                                onClick={() => handlePayFine(transaction._id, calculateFine(transaction.dueDate))}
+                              >
+                                Pay Fine
+                              </Button>
+                              <Button 
+                                variant="outline"
+                                disabled={returningId === transaction._id}
+                                onClick={() => handleReturnBook(transaction._id)}
+                              >
+                                {returningId === transaction._id ? 'Processing...' : 'Mark as Returned'}
+                              </Button>
+                            </>
+                          )}
+                          {transaction.status === 'borrowed' && (
                             <Button 
-                              variant="secondary"
-                              className="bg-blue-100 hover:bg-blue-200 text-blue-800"
-                              onClick={() => handlePayFine(transaction._id, calculateFine(transaction.dueDate))}
+                              variant="outline"
+                              disabled={returningId === transaction._id}
+                              onClick={() => handleReturnBook(transaction._id)}
                             >
-                              Pay Fine
+                              {returningId === transaction._id ? 'Processing...' : 'Mark as Returned'}
                             </Button>
                           )}
                         </div>

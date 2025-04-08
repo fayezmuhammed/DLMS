@@ -346,7 +346,7 @@ const TransactionsPageAdmin: React.FC = () => {
                         )}
                       </div>
                       <div className="flex items-center">
-                        {isActive && (
+                        {(isActive || isOverdue) && (
                           <Button 
                             variant="outline"
                             onClick={() => handleManualReturn(transaction)}
