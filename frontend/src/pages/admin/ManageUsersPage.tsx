@@ -32,7 +32,8 @@ const ManageUsersPage: React.FC = () => {
     email: '',
     role: 'Student',
     batch: '',
-    admissionNumber: ''
+    admissionNumber: '',
+    password: ''
   });
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -93,10 +94,46 @@ const ManageUsersPage: React.FC = () => {
 
   const handleAddUser = async () => {
     try {
+      // Validate required fields
+      if (!newUser.name.trim()) {
+        toast({
+          title: 'Error',
+          description: 'Please enter a name',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!newUser.email.trim()) {
+        toast({
+          title: 'Error',
+          description: 'Please enter an email',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!newUser.password.trim()) {
+        toast({
+          title: 'Error',
+          description: 'Please enter a password',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (newUser.password.trim().length < 6) {
+        toast({
+          title: 'Error',
+          description: 'Password must be at least 6 characters long',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // Ensure we're not sending null values for admissionNumber and batch
       const userData = {
         ...newUser,
-        password: 'defaultpassword123', // Default password that user will be asked to change
         admissionNumber: newUser.admissionNumber || '',
         batch: newUser.batch || ''
       };
@@ -118,7 +155,8 @@ const ManageUsersPage: React.FC = () => {
           email: '',
           role: 'Student',
           batch: '',
-          admissionNumber: ''
+          admissionNumber: '',
+          password: ''
         });
         setIsAddDialogOpen(false);
       } else {
@@ -150,9 +188,26 @@ const ManageUsersPage: React.FC = () => {
     if (!editingUser) return;
     
     try {
+      // Validate password if provided
+      if (editingUser.password && editingUser.password.trim().length > 0) {
+        if (editingUser.password.trim().length < 6) {
+          toast({
+            title: 'Error',
+            description: 'Password must be at least 6 characters long',
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+      
       const userId = editingUser._id;
       // Remove _id and joinedOn from the data being sent
       const { _id, joinedOn, createdAt, ...userData } = editingUser;
+      
+      // If password is empty string, remove it from the update data
+      if (userData.password === '') {
+        delete userData.password;
+      }
       
       const response = await api.put(`/users/${userId}`, userData);
       
@@ -280,6 +335,20 @@ const ManageUsersPage: React.FC = () => {
                   onChange={(e) => setNewUser({...newUser, email: e.target.value})}
                   className="col-span-3" 
                 />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="password" className="text-right">Password</Label>
+                <Input 
+                  id="password" 
+                  type="password"
+                  placeholder="Enter a password"
+                  value={newUser.password} 
+                  onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+                  className="col-span-3" 
+                />
+                <div className="col-span-3 col-start-2 text-xs text-muted-foreground">
+                  Password must be at least 6 characters long
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="role" className="text-right">Role</Label>
@@ -448,6 +517,30 @@ const ManageUsersPage: React.FC = () => {
                   onChange={(e) => setEditingUser({...editingUser, email: e.target.value})}
                   className="col-span-3" 
                 />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="edit-password" className="text-right">New Password</Label>
+                <div className="col-span-3 flex gap-2">
+                  <Input 
+                    id="edit-password" 
+                    type="password"
+                    placeholder="Enter to change password"
+                    value={editingUser.password || ''} 
+                    onChange={(e) => setEditingUser({...editingUser, password: e.target.value})}
+                    className="flex-1" 
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setEditingUser({...editingUser, password: ''})}
+                    size="sm"
+                  >
+                    Clear
+                  </Button>
+                </div>
+                <div className="col-span-3 col-start-2 text-xs text-muted-foreground">
+                  Leave empty to keep current password. New password must be at least 6 characters.
+                </div>
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
                 <Label htmlFor="edit-role" className="text-right">Role</Label>
