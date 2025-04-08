@@ -56,19 +56,19 @@ const generateVerificationOtpEmailTemplate = (verificationCode) => {
     <body>
       <div class="container">
         <div class="header">
-          <h2>Digital Library Management System</h2>
+          <h2>Department Library Management System</h2>
         </div>
         <h3>Email Verification</h3>
-        <p>Thank you for registering with our Digital Library Management System. To complete your registration, please verify your email address using the verification code below:</p>
+        <p>Thank you for registering with our Department Library Management System. To complete your registration, please verify your email address using the verification code below:</p>
         
         <div class="code">${verificationCode}</div>
         
-        <p>This code will expire in 15 minutes for security reasons.</p>
-        <p>If you did not request this verification code, please ignore this email.</p>
+        <p>This code will expire in 15 minutes .</p>
+        // <p>If you did not request this verification code, please ignore this email.</p>
         
         <div class="footer">
-          <p>&copy; ${new Date().getFullYear()} Digital Library Management System. All rights reserved.</p>
-          <p>This is an automated email, please do not reply.</p>
+          <p>&copy; ${new Date().getFullYear()} Department Library Management System. All rights reserved.</p>
+          // <p>This is an automated email, please do not reply.</p>
         </div>
       </div>
     </body>
@@ -138,10 +138,10 @@ const generateForgotPasswordEmailTemplate = (resetPasswordUrl) => {
     <body>
       <div class="container">
         <div class="header">
-          <h2>Digital Library Management System</h2>
+          <h2>Department Library Management System</h2>
         </div>
         <h3>Password Reset Request</h3>
-        <p>You are receiving this email because you (or someone else) has requested the reset of your account password.</p>
+        // <p>You are receiving this email because you (or someone else) has requested the reset of your account password.</p>
         
         <div style="text-align: center;">
           <a href="${resetPasswordUrl}" class="button">Reset Password</a>
@@ -152,12 +152,12 @@ const generateForgotPasswordEmailTemplate = (resetPasswordUrl) => {
           ${resetPasswordUrl}
         </div>
         
-        <p>This password reset link will expire in 10 minutes for security reasons.</p>
-        <p>If you did not request this password reset, please ignore this email and your password will remain unchanged.</p>
+        <p>This password reset link will expire in 10 minutes.</p>
+        // <p>If you did not request this password reset, please ignore this email and your password will remain unchanged.</p>
         
         <div class="footer">
-          <p>&copy; ${new Date().getFullYear()} Digital Library Management System. All rights reserved.</p>
-          <p>This is an automated email, please do not reply.</p>
+          <p>&copy; ${new Date().getFullYear()} Department Library Management System. All rights reserved.</p>
+          // <p>This is an automated email, please do not reply.</p>
         </div>
       </div>
     </body>
