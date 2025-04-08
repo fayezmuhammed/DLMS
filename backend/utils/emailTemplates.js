@@ -148,7 +148,9 @@ const generateForgotPasswordEmailTemplate = (resetPasswordUrl) => {
         </div>
         
         <p>If the button above doesn't work, you can also copy and paste the following link into your browser:</p>
-        <div class="reset-link">${resetPasswordUrl}</div>
+        <div class="reset-link">
+          ${resetPasswordUrl}
+        </div>
         
         <p>This password reset link will expire in 10 minutes for security reasons.</p>
         <p>If you did not request this password reset, please ignore this email and your password will remain unchanged.</p>
