@@ -208,10 +208,17 @@ exports.createEBook = async (req, res) => {
         // Create the e-book in the database
         const ebook = await EBook.create(bookData);
         
-        res.status(201).json(ebook);
+        res.status(201).json({
+            success: true,
+            data: ebook
+        });
     } catch (error) {
         console.error('Error creating e-book:', error);
-        res.status(500).json({ message: 'Failed to create e-book', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to create e-book', 
+            error: error.message 
+        });
     }
 };
 
@@ -301,10 +308,17 @@ exports.updateEBook = async (req, res) => {
             runValidators: true
         });
         
-        res.json(updatedEBook);
+        res.json({
+            success: true,
+            data: updatedEBook
+        });
     } catch (error) {
         console.error('Error updating e-book:', error);
-        res.status(500).json({ message: 'Failed to update e-book', error: error.message });
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to update e-book', 
+            error: error.message 
+        });
     }
 };
 

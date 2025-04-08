@@ -174,7 +174,7 @@ const ManageEBooksPage: React.FC = () => {
       const response = await ebookService.createEBook(formData);
       console.log('Create E-book response:', response);
       
-      if (response && (response.success || response.data)) {
+      if (response && (response.success || response.data || response._id)) {
         toast({
           title: "Success",
           description: "E-book added successfully",
@@ -268,7 +268,7 @@ const ManageEBooksPage: React.FC = () => {
       const response = await ebookService.updateEBook(editingEBook._id, formData);
       console.log('Update E-book response:', response);
       
-      if (response) {
+      if (response && (response.success || response.data || response._id)) {
         toast({
           title: "Success",
           description: "E-book updated successfully",
