@@ -6,6 +6,7 @@ import { toast } from '@/components/ui/use-toast';
 import { Book, bookService } from '@/services/bookService';
 import { WishlistItem, wishlistService } from '@/services/wishlistService';
 import { reservationService } from '@/services/reservationService';
+import { AlertCircle } from 'lucide-react';
 
 // Interface for User type
 interface User {
@@ -25,6 +26,8 @@ const BookDetailPage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [reserving, setReserving] = useState(false);
   const [addingToWishlist, setAddingToWishlist] = useState(false);
+  const [activeReservationsCount, setActiveReservationsCount] = useState<number>(0);
+  const [loadingReservationsCount, setLoadingReservationsCount] = useState<boolean>(false);
 
   // Check if user is logged in
   useEffect(() => {
@@ -33,6 +36,27 @@ const BookDetailPage: React.FC = () => {
       setUser(JSON.parse(storedUser));
     }
   }, []);
+
+  // Fetch user's active reservations count
+  useEffect(() => {
+    if (user) {
+      const fetchReservationsCount = async () => {
+        try {
+          setLoadingReservationsCount(true);
+          const response = await reservationService.getUserReservations();
+          if (response.success) {
+            setActiveReservationsCount(response.data.length);
+          }
+        } catch (err) {
+          console.error('Error fetching reservations count:', err);
+        } finally {
+          setLoadingReservationsCount(false);
+        }
+      };
+      
+      fetchReservationsCount();
+    }
+  }, [user]);
 
   // Fetch book data
   useEffect(() => {
@@ -226,12 +250,36 @@ const BookDetailPage: React.FC = () => {
           <div className="mt-4 space-y-3">
             {user && (
               <>
+                {activeReservationsCount >= 3 && isAvailable && (
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-md mb-2">
+                    <div className="flex items-start">
+                      <AlertCircle className="h-5 w-5 text-amber-600 mr-2 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-800">Maximum reservations reached</p>
+                        <p className="text-xs text-amber-700">
+                          You already have 3 active reservations. Please cancel an existing reservation before making a new one.
+                        </p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => navigate('/reservations')}
+                        >
+                          View My Reservations
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <Button 
                   className="w-full" 
-                  disabled={!isAvailable || reserving}
+                  disabled={!isAvailable || reserving || activeReservationsCount >= 3 || loadingReservationsCount}
                   onClick={handleReserveBook}
                 >
-                  {reserving ? 'Processing...' : isAvailable ? 'Reserve Book' : 'Currently Unavailable'}
+                  {reserving ? 'Processing...' : 
+                   loadingReservationsCount ? 'Checking reservations...' :
+                   !isAvailable ? 'Currently Unavailable' : 
+                   activeReservationsCount >= 3 ? 'Reservation Limit Reached' : 'Reserve Book'}
                 </Button>
                 <Button 
                   variant="outline" 
@@ -367,4 +415,4 @@ const BookDetailPage: React.FC = () => {
   );
 };
 
-export default BookDetailPage; 
+export default BookDetailPage;

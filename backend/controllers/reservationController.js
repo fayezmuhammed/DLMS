@@ -31,6 +31,16 @@ exports.reserveBook = asyncHandler(async (req, res, next) => {
         return next(new ErrorResponse(`You already have an active reservation for this book`, 400));
     }
     
+    // Check maximum reservation limit (3 books)
+    const activeReservationsCount = await Reservation.countDocuments({
+        user: req.user.id,
+        status: 'active'
+    });
+    
+    if (activeReservationsCount >= 3) {
+        return next(new ErrorResponse(`You have reached the maximum limit of 3 active reservations. Please cancel an existing reservation before making a new one.`, 400));
+    }
+    
     // Create reservation
     const reservation = await Reservation.create({
         user: req.user.id,

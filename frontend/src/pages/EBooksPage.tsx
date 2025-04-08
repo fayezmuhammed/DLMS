@@ -113,7 +113,10 @@ const EBooksPage: React.FC = () => {
         <div>
           <Select value={selectedCategory} onValueChange={setSelectedCategory}>
             <SelectTrigger>
-              <SelectValue placeholder="Filter by category" />
+              <SelectValue placeholder="Filter by category">
+                {selectedCategory === 'all' ? 'All Categories' : 
+                  categories.find(c => c._id === selectedCategory)?.name || 'Select category'}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
@@ -185,6 +188,10 @@ const EBooksPage: React.FC = () => {
               <CardContent className="p-4 flex-grow flex flex-col">
                 <div className="mb-2 text-xs text-slate-500 uppercase tracking-wider">
                   {ebook.fileType.toUpperCase()} • {formatFileSize(ebook.fileSize)}
+                  {ebook.category && (
+                    <> • {typeof ebook.category === 'object' ? ebook.category.name : 
+                      categories.find(c => c._id === ebook.category)?.name || 'Uncategorized'}</>
+                  )}
                 </div>
                 <h3 className="font-semibold line-clamp-1 mb-1">{ebook.title}</h3>
                 <p className="text-sm text-muted-foreground mb-2">by {ebook.author}</p>

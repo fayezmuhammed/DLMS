@@ -214,10 +214,24 @@ const ReservationsPage: React.FC = () => {
             <Clock className="mr-2 h-5 w-5" />
             <h3 className="font-semibold">Reservation Policy</h3>
           </div>
-          <p className="text-sm text-amber-700">
+          <p className="text-sm text-amber-700 mb-2">
             Book reservations are valid for 24 hours only. Please pick up your reserved books within this time frame.
             After 24 hours, reservations expire automatically and the books become available to other users.
           </p>
+          <div className="flex items-center text-amber-800 mt-3">
+            <AlertCircle className="mr-2 h-5 w-5" />
+            <h3 className="font-semibold">Reservation Limit</h3>
+          </div>
+          <p className="text-sm text-amber-700">
+            You can have a maximum of 3 active reservations at a time. 
+            If you need to reserve additional books, please cancel an existing reservation or check out your reserved books first.
+          </p>
+          <div className="mt-2 bg-amber-100 p-2 rounded flex items-center">
+            <span className="font-medium mr-2">Your current reservations:</span>
+            <span className={`font-bold ${reservations.length >= 3 ? 'text-red-600' : 'text-green-600'}`}>
+              {reservations.length}/3
+            </span>
+          </div>
         </div>
       </div>
     </div>
