@@ -30,8 +30,8 @@ const userSchema = new mongoose.Schema({
     admissionNumber: {
         type: String,
         default: null,
-        sparse: true,
-        unique: true
+        unique: true,
+        sparse: true
     },
     batch: {
         type: String,
@@ -72,13 +72,13 @@ const userSchema = new mongoose.Schema({
 
 // Encrypt password using bcrypt
 userSchema.pre('save', async function(next) {
-    // If admissionNumber is an empty string, set it to null
-    if (this.admissionNumber === '') {
+    // If admissionNumber is an empty string or undefined, set it to null
+    if (this.admissionNumber === '' || this.admissionNumber === undefined) {
         this.admissionNumber = null;
     }
     
-    // If batch is an empty string, set it to null
-    if (this.batch === '') {
+    // If batch is an empty string or undefined, set it to null
+    if (this.batch === '' || this.batch === undefined) {
         this.batch = null;
     }
     

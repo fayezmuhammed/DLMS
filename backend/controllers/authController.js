@@ -15,7 +15,7 @@ const generateToken = (id) => {
 // @access  Public
 exports.register = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, admissionNumber, batchName, classNumber } = req.body;
 
         // Check if user exists
         const userExists = await User.findOne({ email });
@@ -26,14 +26,35 @@ exports.register = async (req, res) => {
             });
         }
 
-        // Create user
-        const user = await User.create({
+        // Create user with basic fields
+        const userData = {
             name,
             email,
             password,
             role: role || 'student', // Set default role to student
             isVerified: false
-        });
+        };
+
+        // Add student-specific fields if role is student
+        if (role === 'student') {
+            if (admissionNumber && admissionNumber.trim() !== '') {
+                // Check if admission number is already in use
+                const admissionExists = await User.findOne({ admissionNumber: admissionNumber.trim() });
+                if (admissionExists) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'This admission number is already assigned to another student'
+                    });
+                }
+                userData.admissionNumber = admissionNumber.trim();
+            }
+            
+            if (batchName && batchName.trim() !== '') {
+                userData.batch = batchName.trim();
+            }
+        }
+
+        const user = await User.create(userData);
 
         if (user) {
             // Generate verification code
