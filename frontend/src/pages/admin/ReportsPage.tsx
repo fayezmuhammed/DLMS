@@ -11,6 +11,7 @@ import { CalendarIcon, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { reportService, BorrowingTrendData, CategoryData, OverdueData, PopularBookData } from '@/services/reportService';
 import { useToast } from '@/components/ui/use-toast';
+import * as XLSX from 'xlsx';
 
 // Initial empty data structures for reports
 const initialBorrowingData: BorrowingTrendData[] = [];
@@ -114,11 +115,63 @@ const ReportsPage: React.FC = () => {
       return;
     }
     
-    // In a real app, this would generate and download a CSV or PDF file
-    toast({
-      title: "Downloading Report",
-      description: `${reportType} report for period: ${format(startDate!, 'PP')} to ${format(endDate!, 'PP')}`,
-    });
+    let dataToExport: any[] = [];
+    let fileName = `${reportType}-report-${format(startDate!, 'yyyy-MM-dd')}-to-${format(endDate!, 'yyyy-MM-dd')}.xlsx`;
+    
+    try {
+      // Prepare data based on report type
+      switch (reportType) {
+        case 'borrowing':
+          dataToExport = borrowingData.map(item => ({
+            Month: item.month,
+            'Books Borrowed': item.count
+          }));
+          break;
+        
+        case 'category':
+          dataToExport = categoryData.map(item => ({
+            Category: item.name,
+            'Number of Books': item.value
+          }));
+          break;
+        
+        case 'overdue':
+          dataToExport = overdueData.map(item => ({
+            'Overdue Status': item.name,
+            'Number of Books': item.value
+          }));
+          break;
+        
+        case 'popular':
+          dataToExport = popularBooksData.map(item => ({
+            'Book Title': item.name,
+            'Borrow Count': item.count
+          }));
+          break;
+      }
+      
+      // Create workbook and worksheet
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+      
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+      
+      // Generate Excel file and trigger download
+      XLSX.writeFile(workbook, fileName);
+      
+      toast({
+        title: "Success",
+        description: "Report downloaded successfully",
+      });
+    } catch (error) {
+      console.error('Error downloading report:', error);
+      toast({
+        title: "Error",
+        description: "Failed to download report",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
