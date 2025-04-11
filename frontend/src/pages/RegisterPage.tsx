@@ -199,7 +199,7 @@ const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
   );
 
   return (
-    <div className="min-h-screen bg-white flex">
+    <div className="min-h-screen bg-white flex overflow-hidden">
       {/* Left section with illustration */}
       <motion.div 
         initial="hidden" 
