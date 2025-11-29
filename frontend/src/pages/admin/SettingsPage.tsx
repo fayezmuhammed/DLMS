@@ -1,15 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import api from '@/utils/api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import settingsService, { Settings } from '@/services/settingsService';
-import { Checkbox } from '@/components/ui/checkbox';
+import settingsService from '@/services/settingsService';
 
 interface Category {
   _id: string;
@@ -45,17 +42,6 @@ const SettingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const { toast } = useToast();
-
-  // Add email server settings state
-  const [emailSettings, setEmailSettings] = useState({
-    host: '',
-    port: 587,
-    secure: false,
-    username: '',
-    password: '',
-    fromAddress: '',
-    fromName: 'Library Management System'
-  });
 
   useEffect(() => {
     fetchCategories();
@@ -170,13 +156,6 @@ const SettingsPage: React.FC = () => {
     }));
   };
 
-  const handleNotificationToggle = (setting: keyof typeof notificationSettings) => {
-    setNotificationSettings(prev => ({
-      ...prev,
-      [setting]: !prev[setting]
-    }));
-  };
-
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
@@ -205,65 +184,6 @@ const SettingsPage: React.FC = () => {
       });
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  // Add email settings handlers
-  const handleEmailSettingsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    setEmailSettings(prev => ({
-      ...prev,
-      [name]: type === 'number' ? parseInt(value) : value
-    }));
-  };
-
-  const handleSecureToggle = (checked: boolean) => {
-    setEmailSettings(prev => ({
-      ...prev,
-      secure: checked
-    }));
-  };
-
-  const handleTestEmail = async () => {
-    const testEmail = prompt('Enter email address to send test to:');
-    if (!testEmail) return;
-    
-    try {
-      const response = await settingsService.testEmailSettings(testEmail);
-      if (response.success) {
-        toast({
-          title: 'Success',
-          description: 'Test email sent successfully!'
-        });
-      } else {
-        throw new Error(response.message || 'Failed to send test email');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to send test email',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleSaveEmailSettings = async () => {
-    try {
-      const response = await settingsService.updateEmailServer(emailSettings);
-      if (response.success) {
-        toast({
-          title: 'Success',
-          description: 'Email settings saved successfully!'
-        });
-      } else {
-        throw new Error(response.message || 'Failed to save email settings');
-      }
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to save email settings',
-        variant: 'destructive',
-      });
     }
   };
 

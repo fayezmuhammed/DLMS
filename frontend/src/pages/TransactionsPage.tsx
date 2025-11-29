@@ -13,9 +13,8 @@ import {
 } from '@/components/ui/table';
 import { Transaction, transactionService } from '@/services/transactionService';
 import { toast } from '@/components/ui/use-toast';
-import { Book } from '@/services/bookService';
 import settingsService, { BorrowingRules } from '@/services/settingsService';
-import { AlertCircle, BookCopy, Check, Clock, IndianRupee, RefreshCw, Undo2 } from 'lucide-react';
+import { AlertCircle, BookCopy, Check, IndianRupee, RefreshCw, Undo2 } from 'lucide-react';
 
 const TransactionsPage: React.FC = () => {
   const [currentTransactions, setCurrentTransactions] = useState<Transaction[]>([]);
@@ -168,7 +167,7 @@ const TransactionsPage: React.FC = () => {
     return fineAmount;
   };
 
-  const handlePayFine = (transactionId: string, amount: number) => {
+  const handlePayFine = (_transactionId: string, amount: number) => {
     toast({
       title: "Payment Processing",
       description: `Processing payment of ₹${amount.toFixed(2)} for overdue fees.`,
@@ -180,7 +179,6 @@ const TransactionsPage: React.FC = () => {
       toast({
         title: "Payment Successful",
         description: "Your payment was processed successfully. You can now return the book.",
-        variant: "success",
       });
     }, 1500);
   };
@@ -275,8 +273,6 @@ const TransactionsPage: React.FC = () => {
   if (loading) {
     return <div className="text-center py-12">Loading your transactions...</div>;
   }
-
-  const displayTransactions = activeTab === 'current' ? currentTransactions : transactionHistory;
 
   return (
     <div className="container py-8 max-w-6xl">

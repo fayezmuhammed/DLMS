@@ -11,8 +11,11 @@ export interface Student {
 
 export interface Due {
   bookTitle?: string;
+  title?: string;
+  book_name?: string;
   book?: {
     title?: string;
+    bookTitle?: string;
     [key: string]: any;
   };
   dueDate: string;

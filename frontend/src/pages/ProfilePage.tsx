@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from '@/components/ui/use-toast';
 import { authService } from '@/services/authService';
-import { transactionService, UserStats, RecentActivity } from '@/services/transactionService';
+import { transactionService, UserStats } from '@/services/transactionService';
 
 interface User {
   _id: string;

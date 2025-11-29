@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -60,7 +59,6 @@ export default function EditBookPage() {
   const [coverImagePreview, setCoverImagePreview] = useState<string>('');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [transactionsLoading, setTransactionsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('edit');
 
   // Fetch book data and categories on component mount
   useEffect(() => {
@@ -247,12 +245,6 @@ export default function EditBookPage() {
     }
   };
 
-  // Helper function to get category name from ID
-  const getCategoryNameById = (categoryId: string): string => {
-    const category = categories.find(cat => cat._id === categoryId);
-    return category ? category.name : '';
-  };
-
   // Helper function to format date
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
@@ -275,14 +267,6 @@ export default function EditBookPage() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
-  };
-
-  // Helper function to get user name from transaction
-  const getUserName = (transaction: Transaction) => {
-    if (typeof transaction.user === 'object' && transaction.user) {
-      return transaction.user.name;
-    }
-    return 'Unknown User';
   };
 
   return (

@@ -17,14 +17,6 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 
-// Interface for User type
-interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
 const BookDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();

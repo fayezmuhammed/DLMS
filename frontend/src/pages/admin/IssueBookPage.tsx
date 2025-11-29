@@ -1,16 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from '@/components/ui/select';
 import {
   Card,
   CardContent,
@@ -94,13 +87,13 @@ export default function IssueBookPage() {
       if (response.success && response.data) {
         // Filter to find books that have available copies
         const availableBooksData = await Promise.all(
-          response.data.map(async (book) => {
+          response.data.map(async (book: Book) => {
             // Count active transactions for each book
             const transactionsResponse = await transactionService.getBookTransactions(book._id);
             
             if (transactionsResponse.success) {
               const activeTransactions = transactionsResponse.data.filter(
-                (tx) => tx.status === 'borrowed' || tx.status === 'overdue'
+                (tx: { status: string }) => tx.status === 'borrowed' || tx.status === 'overdue'
               ).length;
               
               // Book is available if it has more copies than active transactions
@@ -389,9 +382,14 @@ export default function IssueBookPage() {
                     <Badge variant="outline">Copies: {availableBooks.find(book => book._id === selectedBook)?.copies}</Badge>
                     {availableBooks.find(book => book._id === selectedBook)?.category && (
                       <Badge variant="secondary">{
-                        typeof availableBooks.find(book => book._id === selectedBook)?.category === 'object' 
-                          ? availableBooks.find(book => book._id === selectedBook)?.category.name 
-                          : availableBooks.find(book => book._id === selectedBook)?.category
+                        (() => {
+                          const book = availableBooks.find(b => b._id === selectedBook);
+                          if (!book?.category) return 'Uncategorized';
+                          if (typeof book.category === 'object' && book.category !== null) {
+                            return (book.category as { name?: string }).name || 'Uncategorized';
+                          }
+                          return String(book.category);
+                        })()
                       }</Badge>
                     )}
                   </div>

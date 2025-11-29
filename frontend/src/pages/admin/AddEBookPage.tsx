@@ -178,12 +178,6 @@ export default function AddEBookPage() {
     }
   };
 
-  // Helper function to get category name from ID
-  const getCategoryNameById = (categoryId: string): string => {
-    const category = categories.find(cat => cat._id === categoryId);
-    return category ? category.name : '';
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">

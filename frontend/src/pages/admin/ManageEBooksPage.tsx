@@ -4,29 +4,19 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from "@/components/ui/use-toast";
 import { EBook, ebookService } from '@/services/ebookService';
-import { Category, bookService } from '@/services/bookService';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import api from '@/utils/api';
 import { useNavigate } from 'react-router-dom';
-import { PencilIcon } from '@heroicons/react/24/outline';
 
 const ManageEBooksPage: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [ebooks, setEbooks] = useState<EBook[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [formSubmitting, setFormSubmitting] = useState(false);
   
-  // Fetch e-books and categories on component mount
+  // Fetch e-books on component mount
   useEffect(() => {
     fetchEbooks();
-    fetchCategories();
   }, []);
 
   const fetchEbooks = async () => {
@@ -47,33 +37,6 @@ const ManageEBooksPage: React.FC = () => {
       setError('Failed to fetch e-books. Please try again later.');
       setLoading(false);
     }
-  };
-  
-  const fetchCategories = async () => {
-    try {
-      const response = await bookService.getCategories();
-      setCategories(response.data || []);
-    } catch (err) {
-      console.error('Error fetching categories:', err);
-      toast({
-        title: "Error",
-        description: "Failed to fetch categories",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Helper function to format cover image URL correctly
-  const getCoverImageUrl = (imagePath?: string) => {
-    if (!imagePath) return '';
-    
-    // If it's already a full URL (including Cloudinary URLs)
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
-    }
-    
-    // If it's a relative path, prefix with backend URL
-    return `${import.meta.env.VITE_API_URL}/${imagePath}`;
   };
 
   // Filter e-books based on search term

@@ -20,12 +20,11 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Transaction, transactionService } from '@/services/transactionService';
-import { bookService } from '@/services/bookService';
 import { toast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import settingsService, { BorrowingRules } from '@/services/settingsService';
 import AdminPageTitle from '@/components/admin/AdminPageTitle';
-import { AlertCircle, BookCopy, Check, Clock, IndianRupee, RefreshCw } from 'lucide-react';
+import { AlertCircle, BookCopy, Check, IndianRupee, RefreshCw } from 'lucide-react';
 
 const TransactionsPageAdmin: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');

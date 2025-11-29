@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Book, bookService } from '@/services/bookService';
-import { ArrowRight, BookOpen, Bookmark, LibraryBig, Users, Clock3 } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 // Import Google Fonts in your main index.html or add here if using CSS-in-JS
@@ -13,12 +13,6 @@ interface User {
   name: string;
   email: string;
   role: string;
-}
-
-interface LibraryStats {
-  totalBooks: number;
-  totalMembers: number;
-  availableBooks: number;
 }
 
 // Animation variants
@@ -55,11 +49,6 @@ const HomePage: React.FC = () => {
   const [newArrivals, setNewArrivals] = useState<Book[]>([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  const [stats, setStats] = useState<LibraryStats>({
-    totalBooks: 5000,
-    totalMembers: 1200,
-    availableBooks: 4300,
-  });
   
   // Text animations
   const [letterIndex, setLetterIndex] = useState(0);
@@ -116,25 +105,6 @@ const HomePage: React.FC = () => {
 
     fetchBooks();
   }, []);
-
-  const StatCard = ({ icon: Icon, value, label }: { icon: React.ElementType, value: number, label: string }) => (
-    <motion.div 
-      whileHover={{ y: -5 }}
-      whileTap={{ scale: 0.98 }}
-    >
-      <Card className="border-none shadow-md transition-shadow">
-        <CardContent className="flex items-center gap-4 p-6">
-          <div className="p-3 rounded-full bg-indigo-50 text-indigo-600">
-            <Icon className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-3xl font-semibold text-gray-900">{value.toLocaleString()}</p>
-            <p className="text-sm text-gray-500">{label}</p>
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
-  );
 
   return (
     <div className="min-h-screen bg-white">

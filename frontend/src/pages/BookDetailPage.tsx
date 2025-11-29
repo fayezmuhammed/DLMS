@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { toast } from '@/components/ui/use-toast';
 import { Book, bookService } from '@/services/bookService';
-import { WishlistItem, wishlistService } from '@/services/wishlistService';
+import { wishlistService } from '@/services/wishlistService';
 import { reservationService } from '@/services/reservationService';
 import { AlertCircle } from 'lucide-react';
 
@@ -334,7 +334,7 @@ const BookDetailPage: React.FC = () => {
             <div>
               <p className="text-sm text-muted-foreground">Category</p>
               <p className="font-medium">
-                {typeof book.category === 'object' ? book.category.name : 'N/A'}
+                {typeof book.category === 'object' && book.category ? book.category.name : 'N/A'}
               </p>
             </div>
             <div>

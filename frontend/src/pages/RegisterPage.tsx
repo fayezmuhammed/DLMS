@@ -8,7 +8,7 @@ interface RegisterPageProps {
   onRegister?: (userData: any) => void;
 }
 
-const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister }) => {
+const RegisterPage: React.FC<RegisterPageProps> = ({ onRegister: _onRegister }) => {
   const [formData, setFormData] = useState({
     name: '',
     email: '',

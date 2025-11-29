@@ -5,8 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from '@/components/ui/use-toast';
 import { EBook, ebookService } from '@/services/ebookService';
-import { Book, bookService } from '@/services/bookService';
-import api from '@/utils/api';
 
 // Interface for User type
 interface User {

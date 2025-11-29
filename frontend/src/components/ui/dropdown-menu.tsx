@@ -52,7 +52,8 @@ export const DropdownMenuTrigger: React.FC<{
 export const DropdownMenuContent: React.FC<{
   align?: 'start' | 'end' | 'center';
   children: React.ReactNode;
-}> = ({ align = 'center', children }) => {
+  className?: string;
+}> = ({ align = 'center', children, className = '' }) => {
   const context = useContext(DropdownMenuContext);
   if (!context) {
     throw new Error('DropdownMenuContent must be used within a DropdownMenu');
@@ -70,7 +71,7 @@ export const DropdownMenuContent: React.FC<{
 
   return (
     <div
-      className={`absolute z-50 mt-2 min-w-[8rem] rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none ${alignmentClasses[align]}`}
+      className={`absolute z-50 mt-2 min-w-[8rem] rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none ${alignmentClasses[align]} ${className}`}
       role="menu"
       aria-orientation="vertical"
       tabIndex={-1}
@@ -84,7 +85,8 @@ export const DropdownMenuItem: React.FC<{
   asChild?: boolean;
   children: React.ReactNode;
   onClick?: () => void;
-}> = ({ asChild = false, children, onClick }) => {
+  className?: string;
+}> = ({ asChild = false, children, onClick, className = '' }) => {
   const context = useContext(DropdownMenuContext);
   if (!context) {
     throw new Error('DropdownMenuItem must be used within a DropdownMenu');
@@ -119,7 +121,7 @@ export const DropdownMenuItem: React.FC<{
 
   return (
     <button
-      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+      className={`block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 ${className}`}
       role="menuitem"
       onClick={handleClick}
     >

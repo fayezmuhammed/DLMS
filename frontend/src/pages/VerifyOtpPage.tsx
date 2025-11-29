@@ -76,8 +76,11 @@ const VerifyOtpPage: React.FC = () => {
       setOtp(newOtp);
       
       // Auto-focus next input if current has a value
-      if (value && index < 5 && inputRefs.current && inputRefs.current[index + 1]) {
-        inputRefs.current[index + 1].focus();
+      if (value && index < 5 && inputRefs.current) {
+        const nextInput = inputRefs.current[index + 1];
+        if (nextInput) {
+          nextInput.focus();
+        }
       }
     }
   };
@@ -85,8 +88,11 @@ const VerifyOtpPage: React.FC = () => {
   // Handle key press in OTP inputs
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
     // Move focus to previous input on backspace if current is empty
-    if (e.key === 'Backspace' && !otp[index] && index > 0 && inputRefs.current && inputRefs.current[index - 1]) {
-      inputRefs.current[index - 1].focus();
+    if (e.key === 'Backspace' && !otp[index] && index > 0 && inputRefs.current) {
+      const prevInput = inputRefs.current[index - 1];
+      if (prevInput) {
+        prevInput.focus();
+      }
     }
   };
   
@@ -124,7 +130,7 @@ const VerifyOtpPage: React.FC = () => {
     
     try {
       // Call API to verify OTP
-      const response = await api.post('/auth/verify', {
+      await api.post('/auth/verify', {
         email,
         code: otpValue
       });

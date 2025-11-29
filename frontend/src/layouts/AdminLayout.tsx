@@ -12,7 +12,6 @@ import {
   FileCheck,
   Clock,
   PanelLeftClose,
-  PanelLeftOpen,
   Menu
 } from 'lucide-react';
 

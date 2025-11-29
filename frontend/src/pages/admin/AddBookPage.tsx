@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import api from '@/utils/api';
@@ -171,12 +170,6 @@ export default function AddBookPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Helper function to get category name from ID
-  const getCategoryNameById = (categoryId: string): string => {
-    const category = categories.find(cat => cat._id === categoryId);
-    return category ? category.name : '';
   };
 
   return (

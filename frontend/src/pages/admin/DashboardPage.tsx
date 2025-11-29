@@ -1,19 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
-import axios from 'axios';
 import { bookService, Book } from '@/services/bookService';
 import api from '@/utils/api';
-import { User, userService } from '../../services/userService';
+import { User } from '../../services/userService';
 import { ebookService, EBook } from '@/services/ebookService';
 
 interface StatsData {
@@ -39,43 +30,7 @@ const DashboardPage: React.FC = () => {
   const [popularEbooks, setPopularEbooks] = useState<EBook[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
-  const [ebooks, setEbooks] = useState<EBook[]>([]);
-
-  // State for quick action modals
-  const [showAddUserModal, setShowAddUserModal] = useState(false);
-  const [showAddBookModal, setShowAddBookModal] = useState(false);
-  const [showIssueBookModal, setShowIssueBookModal] = useState(false);
-
-  // New user form state
-  const [newUser, setNewUser] = useState({
-    name: '',
-    email: '',
-    role: 'Student',
-    department: '',
-    password: ''
-  });
-
-  // New book form state
-  const [newBook, setNewBook] = useState<Omit<Book, '_id' | 'addedOn'>>({
-    title: '',
-    author: '',
-    ISBN: '',
-    bookNo: '',
-    category: '',
-    status: 'Available',
-    copies: 1,
-    coverImage: ''
-  });
-
-  // State for issue book
-  const [issueBookData, setIssueBookData] = useState({
-    bookId: '',
-    userId: '',
-    dueDate: new Date(new Date().setDate(new Date().getDate() + 14)) // Default due date is 14 days from now
-  });
-
-  // State for return book
-  const [returnBookId, setReturnBookId] = useState('');
+  const [_ebooks, setEbooks] = useState<EBook[]>([]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -149,65 +104,6 @@ const DashboardPage: React.FC = () => {
 
     fetchDashboardData();
   }, []);
-
-  // Handle issue book
-  const handleIssueBook = () => {
-    // In a real app, this would make an API call to issue the book
-    const selectedBook = books.find(book => book._id.toString() === issueBookData.bookId);
-    const selectedUser = users.find(user => user._id.toString() === issueBookData.userId);
-    
-    if (!selectedBook || !selectedUser) {
-      alert('Please select both a book and a user');
-      return;
-    }
-    
-    console.log('Issuing book:', {
-      book: selectedBook,
-      user: selectedUser,
-      dueDate: issueBookData.dueDate
-    });
-    
-    // Show success message
-    alert(`Book "${selectedBook.title}" has been issued to ${selectedUser.name} until ${format(issueBookData.dueDate, 'PP')}`);
-    
-    // Reset form and close dialog
-    setIssueBookData({
-      bookId: '',
-      userId: '',
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 14))
-    });
-    setShowIssueBookModal(false);
-    
-    // Update stats
-    setStats(prev => ({
-      ...prev,
-      activeTransactions: prev.activeTransactions + 1
-    }));
-  };
-
-  // Handle return book
-  const handleReturnBook = () => {
-    // In a real app, this would make an API call to return the book
-    if (!returnBookId) {
-      alert('Please enter a transaction ID');
-      return;
-    }
-    
-    console.log('Returning book with transaction ID:', returnBookId);
-    
-    // Show success message
-    alert(`Book with transaction ID ${returnBookId} has been returned successfully!`);
-    
-    // Reset form and close dialog
-    setReturnBookId('');
-    setShowIssueBookModal(false);
-    
-    // Update stats
-    setStats(prev => ({
-      ...prev,
-      activeTransactions: Math.max(0, prev.activeTransactions - 1)
-    }));
-  };
 
   return (
     <div className="space-y-6">

@@ -1,9 +1,8 @@
 import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from "@/components/ui/use-toast";
@@ -30,13 +29,9 @@ export default function ManageBooksPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState('');
-  const [editCoverImageFile, setEditCoverImageFile] = useState<File | null>(null);
-  const [editCoverImagePreview, setEditCoverImagePreview] = useState('');
   const [newBook, setNewBook] = useState({
     bookNo: '',
     title: '',
@@ -110,24 +105,6 @@ export default function ManageBooksPage() {
       reader.readAsDataURL(file);
     }
   };
-  
-  // Handle edit image upload
-  const handleEditImageChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0] && editingBook) {
-      const file = e.target.files[0];
-      setEditCoverImageFile(file);
-      
-      // Create a preview URL
-      const reader = new FileReader();
-      reader.onload = (event: ProgressEvent<FileReader>) => {
-        if (event.target && typeof event.target.result === 'string') {
-          setEditCoverImagePreview(event.target.result);
-          setEditingBook({...editingBook, coverImage: event.target.result});
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   // Add book handler
   const handleAddBook = async (e: React.FormEvent) => {
@@ -149,7 +126,7 @@ export default function ManageBooksPage() {
       if (newBook.category) {
         // Ensure category is a string value
         const categoryValue = typeof newBook.category === 'object' && newBook.category !== null
-          ? newBook.category._id 
+          ? (newBook.category as { _id: string })._id 
           : String(newBook.category);
         formData.append('category', categoryValue);
       }
@@ -185,80 +162,6 @@ export default function ManageBooksPage() {
         description: "Failed to add book",
         variant: "destructive",
       });
-    }
-  };
-
-  // Edit book handler
-  const handleEditBook = async () => {
-    if (editingBook) {
-      // Validate required fields
-      if (!editingBook.title || !editingBook.author) {
-        toast({
-          title: "Error",
-          description: "Please fill in all required fields (Title, Author)",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        
-        // Create form data for the edit
-        const formData = new FormData();
-        formData.append('title', editingBook.title);
-        formData.append('author', editingBook.author);
-        
-        // Add ISBN only if it has a value
-        if (editingBook.ISBN || editingBook.isbn) {
-          formData.append('ISBN', editingBook.ISBN || editingBook.isbn || '');
-        }
-        
-        // Handle category properly - only add if present
-        if (editingBook.category) {
-          const categoryValue = typeof editingBook.category === 'object' 
-            ? editingBook.category._id 
-            : editingBook.category;
-          
-          if (categoryValue) {
-            formData.append('category', categoryValue);
-          }
-        }
-        
-        formData.append('status', editingBook.status);
-        formData.append('copies', editingBook.copies.toString());
-        
-        // Add image if there's a new one
-        if (editCoverImageFile) {
-          formData.append('image', editCoverImageFile);
-        }
-
-        // Send the update to the server
-        await bookService.updateBook(editingBook._id, formData);
-        
-        // Refresh the book list
-        await fetchBooks();
-        
-        toast({
-          title: "Success",
-          description: `Book "${editingBook.title}" has been updated successfully`,
-        });
-        
-        // Close dialog and reset state
-        setIsEditDialogOpen(false);
-        setEditingBook(null);
-        setEditCoverImageFile(null);
-        setEditCoverImagePreview('');
-      } catch (error) {
-        console.error('Error updating book:', error);
-        toast({
-          title: "Error",
-          description: "Failed to update book. Please try again.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoading(false);
-      }
     }
   };
 
@@ -449,7 +352,7 @@ export default function ManageBooksPage() {
         ]}
         data={filteredBooks}
         onRowClick={(book) => navigate(`/admin/books/edit/${book._id}`)}
-        renderCell={(book, column, index) => {
+        renderCell={(book, column, _index) => {
           switch (column) {
             case 'bookNo':
               return book.bookNo;

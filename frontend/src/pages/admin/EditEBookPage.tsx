@@ -8,7 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 import { Switch } from '@/components/ui/switch';
 import api from '@/utils/api';
-import { ebookService } from '@/services/ebookService';
 
 interface Category {
   _id: string;

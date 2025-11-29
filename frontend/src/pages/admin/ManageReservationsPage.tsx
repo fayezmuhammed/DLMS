@@ -12,11 +12,10 @@ import {
 } from '@/components/ui/table';
 import { Reservation, reservationService } from '@/services/reservationService';
 import { Book } from '@/services/bookService';
-import { transactionService } from '@/services/transactionService';
 import { AlertCircle, BookOpen, Check, Clock, RefreshCw, X } from 'lucide-react';
 import AdminPageTitle from '@/components/admin/AdminPageTitle';
 
-interface ExtendedReservation extends Reservation {
+interface ExtendedReservation extends Omit<Reservation, 'user' | 'book'> {
   book: Book;
   user: {
     _id: string;
@@ -32,7 +31,6 @@ const ManageReservationsPage: React.FC = () => {
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [issuingId, setIssuingId] = useState<string | null>(null);
   const [checkingExpired, setCheckingExpired] = useState(false);
-  const [expiredCount, setExpiredCount] = useState(0);
 
   // Format date to readable string
   const formatDate = (dateString: string): string => {
@@ -121,8 +119,6 @@ const ManageReservationsPage: React.FC = () => {
       const response = await reservationService.expireOutdatedReservations();
       
       if (response.success) {
-        setExpiredCount(response.count);
-        
         // Refresh the reservation list
         fetchReservations();
         

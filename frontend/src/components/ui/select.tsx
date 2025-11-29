@@ -20,9 +20,10 @@ export const Select: React.FC<SelectProps> = ({
   children,
   value,
   onValueChange,
-  defaultValue,
+  defaultValue: _defaultValue,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
+  // Note: defaultValue is accepted for API compatibility but value is the source of truth
 
   return (
     <SelectContext.Provider value={{ value, onValueChange, isOpen, setIsOpen }}>
@@ -34,11 +35,13 @@ export const Select: React.FC<SelectProps> = ({
 export interface SelectTriggerProps {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }
 
 export const SelectTrigger: React.FC<SelectTriggerProps> = ({
   children,
   className = '',
+  id,
 }) => {
   const context = useContext(SelectContext);
   if (!context) {
@@ -50,6 +53,7 @@ export const SelectTrigger: React.FC<SelectTriggerProps> = ({
   return (
     <button
       type="button"
+      id={id}
       onClick={() => setIsOpen(!isOpen)}
       className={`flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       aria-expanded={isOpen}

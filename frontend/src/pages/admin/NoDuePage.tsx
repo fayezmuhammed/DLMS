@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +45,7 @@ const printStyles = `
 
 interface ActiveBorrowing {
   bookTitle: string;
+  bookNo?: string;
   dueDate: string;
   transactionId?: string;
   bookId?: string;

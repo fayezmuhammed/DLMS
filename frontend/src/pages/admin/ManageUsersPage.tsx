@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -420,7 +419,7 @@ const ManageUsersPage: React.FC = () => {
         ]}
         data={filteredUsers}
         onRowClick={(user) => navigate(`/admin/users/${user._id}`)}
-        renderCell={(user, column, index) => {
+        renderCell={(user, column, _index) => {
           switch (column) {
             case 'name':
               return user.name;
