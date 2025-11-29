@@ -3,113 +3,127 @@ const Book = require('../models/Book');
 const User = require('../models/User');
 const Settings = require('../models/Settings');
 
+// Cache for settings to avoid frequent DB queries
+let settingsCache = null;
+let settingsCacheTime = 0;
+const SETTINGS_CACHE_TTL = 60 * 60 * 1000; // 1 hour in milliseconds
+
+// Get settings with cache
+const getSettings = async () => {
+    const now = Date.now();
+    if (settingsCache && now - settingsCacheTime < SETTINGS_CACHE_TTL) {
+        return settingsCache;
+    }
+    
+    const settings = await Settings.getSettings();
+    settingsCache = settings;
+    settingsCacheTime = now;
+    return settings;
+};
+
+// Helper function to check book availability - optimized queries
+const checkBookAvailability = async (bookId, userId) => {
+    // Use Promise.all to run queries in parallel
+    const [book, user, activeBookTransactions, activeBorrows] = await Promise.all([
+        Book.findById(bookId),
+        User.findById(userId),
+        Transaction.countDocuments({
+            book: bookId,
+            status: { $in: ['borrowed', 'overdue'] }
+        }),
+        Transaction.countDocuments({
+            user: userId,
+            status: { $in: ['borrowed', 'overdue'] }
+        })
+    ]);
+    
+    if (!book) throw new Error('Book not found');
+    if (!user) throw new Error('User not found');
+    
+    const settings = await getSettings();
+    const userRole = user.role.toLowerCase();
+    const maxBooks = userRole === 'teacher' ? settings.maxBooksTeacher : settings.maxBooksStudent;
+    const loanDays = userRole === 'teacher' ? settings.maxDaysTeacher : settings.maxDaysStudent;
+    
+    if (activeBorrows >= maxBooks) throw new Error(`You have reached your borrowing limit of ${maxBooks} books`);
+    
+    // Check if user already has this book
+    const existingTransaction = await Transaction.findOne({
+        book: bookId,
+        user: userId,
+        status: { $in: ['borrowed', 'overdue'] }
+    });
+    
+    if (existingTransaction) throw new Error('You have already borrowed this book');
+    
+    if (activeBookTransactions >= book.copies) {
+        throw new Error(`All copies of this book are already issued. Total copies: ${book.copies}, Currently issued: ${activeBookTransactions}`);
+    }
+    
+    return { book, loanDays };
+};
+
+// Helper function to update book status - with projection to improve performance
+const updateBookStatus = async (bookId) => {
+    const book = await Book.findById(bookId, { status: 1, copies: 1 });
+    if (!book) return;
+    
+    const remainingActiveTransactions = await Transaction.countDocuments({
+        book: bookId,
+        status: { $in: ['borrowed', 'overdue'] }
+    });
+    
+    if ((book.status === 'Available' && remainingActiveTransactions === 0) || 
+        (book.status === 'Issued' && remainingActiveTransactions > 0)) {
+        return; // No need to update if status is already correct
+    }
+    
+    book.status = remainingActiveTransactions === 0 ? 'Available' : 'Issued';
+    await book.save();
+};
+
+// Helper function to update overdue status - with bulk operations
+const updateOverdueStatus = async (transactions) => {
+    const today = new Date();
+    const toUpdate = [];
+    
+    for (let transaction of transactions) {
+        if (transaction.status === 'borrowed' && new Date(transaction.dueDate) < today) {
+            transaction.status = 'overdue';
+            toUpdate.push(transaction._id);
+        }
+    }
+    
+    if (toUpdate.length > 0) {
+        await Transaction.updateMany(
+            { _id: { $in: toUpdate } },
+            { $set: { status: 'overdue' } }
+        );
+    }
+};
+
 // @desc    Borrow a book
 // @route   POST /api/transactions/borrow/:bookId
 // @access  Private
 exports.borrowBook = async (req, res) => {
     try {
-        const book = await Book.findById(req.params.bookId);
+        const { book, loanDays } = await checkBookAvailability(req.params.bookId, req.user._id);
         
-        if (!book) {
-            return res.status(404).json({
-                success: false,
-                message: 'Book not found'
-            });
-        }
-
-        // Get the user
-        const user = await User.findById(req.user._id);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        // Get borrowing rules from settings
-        const settings = await Settings.getSettings();
-        const userRole = user.role.toLowerCase();
-        
-        // Determine maximum books allowed based on user role
-        const maxBooks = userRole === 'teacher' ? 
-            settings.maxBooksTeacher : settings.maxBooksStudent;
-        
-        // Determine loan period (days) based on user role
-        const loanDays = userRole === 'teacher' ? 
-            settings.maxDaysTeacher : settings.maxDaysStudent;
-        
-        // Check how many books the user has already borrowed
-        const activeBorrows = await Transaction.countDocuments({
-            user: req.user._id,
-            status: { $in: ['borrowed', 'overdue'] }
-        });
-        
-        // Check if user has reached their borrowing limit
-        if (activeBorrows >= maxBooks) {
-            return res.status(400).json({
-                success: false,
-                message: `You have reached your borrowing limit of ${maxBooks} books`
-            });
-        }
-
-        // Check if the user already has an active transaction for this book
-        const existingTransaction = await Transaction.findOne({
-            book: req.params.bookId,
-            user: req.user._id,
-            status: { $in: ['borrowed', 'overdue'] }
-        });
-
-        if (existingTransaction) {
-            return res.status(400).json({
-                success: false,
-                message: 'You have already borrowed this book'
-            });
-        }
-
-        // Get active transactions for this book to determine how many copies are already issued
-        const activeTransactions = await Transaction.countDocuments({
-            book: req.params.bookId,
-            status: { $in: ['borrowed', 'overdue'] }
-        });
-
-        // Check if all copies are already issued
-        if (activeTransactions >= book.copies) {
-            return res.status(400).json({
-                success: false,
-                message: `All copies of this book are already issued. Total copies: ${book.copies}, Currently issued: ${activeTransactions}`
-            });
-        }
-
-        // Set due date based on borrowing rules
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + loanDays);
-
+        
         const transaction = await Transaction.create({
             user: req.user._id,
             book: req.params.bookId,
             dueDate,
             status: 'borrowed'
         });
-
-        // Update book status only if all copies are now issued
-        const newActiveCount = activeTransactions + 1;
-        if (newActiveCount >= book.copies) {
-            book.status = 'Issued';
-        } else if (book.status !== 'Available' && newActiveCount < book.copies) {
-            // If some copies are now available, update status
-            book.status = 'Available';
-        }
-        await book.save();
-
-        res.status(201).json({
-            success: true,
-            data: transaction
-        });
+        
+        await updateBookStatus(req.params.bookId);
+        
+        res.status(201).json({ success: true, data: transaction });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
+        res.status(400).json({ success: false, message: error.message });
     }
 };
 
@@ -121,45 +135,50 @@ exports.returnBook = async (req, res) => {
         const transaction = await Transaction.findOne({
             book: req.params.bookId,
             user: req.user._id,
-            status: 'borrowed'
+            status: { $in: ['borrowed', 'overdue'] }
         });
-
+        
         if (!transaction) {
-            return res.status(404).json({
-                success: false,
-                message: 'No active transaction found for this book'
-            });
+            return res.status(404).json({ success: false, message: 'No active transaction found for this book' });
         }
-
-        // Update transaction
+        
         transaction.status = 'returned';
         transaction.returnDate = new Date();
         await transaction.save();
-
-        // Update book status - check if there are any remaining active transactions
-        const book = await Book.findById(req.params.bookId);
-        if (book) {
-            const remainingActiveTransactions = await Transaction.countDocuments({
-                book: req.params.bookId,
-                status: { $in: ['borrowed', 'overdue'] }
-            });
-            
-            // Only change status to Available if there are no more active transactions
-            if (remainingActiveTransactions === 0) {
-                book.status = 'Available';
-                await book.save();
-            }
-        }
-
-        res.json({
-            success: true,
-            data: transaction
-        });
+        
+        await updateBookStatus(req.params.bookId);
+        
+        res.json({ success: true, data: transaction });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
+        res.status(400).json({ success: false, message: error.message });
+    }
+};
+
+// @desc    Return a book by transaction ID
+exports.returnBookById = async (req, res) => {
+    try {
+        const transaction = await Transaction.findById(req.params.transactionId);
+        if (!transaction) {
+            return res.status(404).json({ success: false, message: 'Transaction not found' });
+        }
+        
+        if (transaction.user.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+            return res.status(403).json({ success: false, message: 'Not authorized to return this book' });
+        }
+        
+        if (!['borrowed', 'overdue'].includes(transaction.status)) {
+            return res.status(400).json({ success: false, message: 'This book has already been returned' });
+        }
+        
+        transaction.status = 'returned';
+        transaction.returnDate = new Date();
+        await transaction.save();
+        
+        await updateBookStatus(transaction.book);
+        
+        res.json({ success: true, data: transaction });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 };
 
@@ -170,27 +189,14 @@ exports.getBorrowingHistory = async (req, res) => {
     try {
         const transactions = await Transaction.find({ user: req.user._id })
             .populate('book', 'title author ISBN imagePath')
-            .sort('-createdAt');
-
-        // Update overdue status
-        const today = new Date();
-        for (let transaction of transactions) {
-            if (transaction.status === 'borrowed' && new Date(transaction.dueDate) < today) {
-                transaction.status = 'overdue';
-                await transaction.save();
-            }
-        }
-
-        res.json({
-            success: true,
-            count: transactions.length,
-            data: transactions
-        });
+            .sort('-createdAt')
+            .lean(); // Use lean for better performance
+            
+        await updateOverdueStatus(transactions);
+        
+        res.json({ success: true, count: transactions.length, data: transactions });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
+        res.status(400).json({ success: false, message: error.message });
     }
 };
 
@@ -199,40 +205,34 @@ exports.getBorrowingHistory = async (req, res) => {
 // @access  Private/Admin
 exports.getAllTransactions = async (req, res) => {
     try {
-        // Parse query params for filtering
-        const status = req.query.status;
+        const query = req.query.status ? { status: req.query.status } : {};
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const skip = (page - 1) * limit;
         
-        // Build query
-        let query = {};
-        if (status) {
-            query.status = status;
-        }
-        
-        const transactions = await Transaction.find(query)
-            .populate('book', 'title author ISBN imagePath')
-            .populate('user', 'name email')
-            .sort('-createdAt');
+        const [transactions, total] = await Promise.all([
+            Transaction.find(query)
+                .populate('book', 'title author ISBN imagePath')
+                .populate('user', 'name email')
+                .sort('-createdAt')
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Transaction.countDocuments(query)
+        ]);
             
-        // Update overdue status
-        const today = new Date();
-        for (let transaction of transactions) {
-            if (transaction.status === 'borrowed' && new Date(transaction.dueDate) < today) {
-                transaction.status = 'overdue';
-                await transaction.save();
-            }
-        }
-
-        res.json({
-            success: true,
-            count: transactions.length,
-            data: transactions
+        await updateOverdueStatus(transactions);
+        
+        res.json({ 
+            success: true, 
+            count: transactions.length, 
+            total,
+            pages: Math.ceil(total / limit),
+            currentPage: page,
+            data: transactions 
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
 
@@ -241,33 +241,17 @@ exports.getAllTransactions = async (req, res) => {
 // @access  Private/Admin
 exports.getBookTransactions = async (req, res) => {
     try {
-        const bookId = req.params.bookId;
-        
-        const transactions = await Transaction.find({ book: bookId })
+        const transactions = await Transaction.find({ book: req.params.bookId })
             .populate('book', 'title author ISBN imagePath')
             .populate('user', 'name email')
-            .sort('-createdAt');
+            .sort('-createdAt')
+            .lean();
             
-        // Update overdue status
-        const today = new Date();
-        for (let transaction of transactions) {
-            if (transaction.status === 'borrowed' && new Date(transaction.dueDate) < today) {
-                transaction.status = 'overdue';
-                await transaction.save();
-            }
-        }
-
-        res.json({
-            success: true,
-            count: transactions.length,
-            data: transactions
-        });
+        await updateOverdueStatus(transactions);
+        
+        res.json({ success: true, count: transactions.length, data: transactions });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
 
@@ -276,37 +260,33 @@ exports.getBookTransactions = async (req, res) => {
 // @access  Private/Admin
 exports.getActiveTransactions = async (req, res) => {
     try {
-        const transactions = await Transaction.find({ status: 'borrowed' })
-            .populate('book', 'title author ISBN imagePath')
-            .populate('user', 'name email')
-            .sort('-createdAt');
-            
-        // Update overdue status
-        const today = new Date();
-        for (let transaction of transactions) {
-            if (new Date(transaction.dueDate) < today) {
-                transaction.status = 'overdue';
-                await transaction.save();
-            }
-        }
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const skip = (page - 1) * limit;
         
-        // Get final list after updates
-        const activeTransactions = await Transaction.find({ status: 'borrowed' })
-            .populate('book', 'title author ISBN imagePath')
-            .populate('user', 'name email')
-            .sort('-createdAt');
-
-        res.json({
-            success: true,
-            count: activeTransactions.length,
-            data: activeTransactions
+        const [transactions, total] = await Promise.all([
+            Transaction.find({ status: { $in: ['borrowed', 'overdue'] } })
+                .populate('book', 'title author ISBN imagePath')
+                .populate('user', 'name email')
+                .sort('-createdAt')
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Transaction.countDocuments({ status: { $in: ['borrowed', 'overdue'] } })
+        ]);
+            
+        await updateOverdueStatus(transactions);
+        
+        res.json({ 
+            success: true, 
+            count: transactions.length, 
+            total,
+            pages: Math.ceil(total / limit),
+            currentPage: page,
+            data: transactions 
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
 
@@ -315,34 +295,31 @@ exports.getActiveTransactions = async (req, res) => {
 // @access  Private/Admin
 exports.getOverdueTransactions = async (req, res) => {
     try {
-        // Update overdue status for all borrowed books
-        const today = new Date();
-        const borrowedTransactions = await Transaction.find({ status: 'borrowed' });
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const skip = (page - 1) * limit;
         
-        for (let transaction of borrowedTransactions) {
-            if (new Date(transaction.dueDate) < today) {
-                transaction.status = 'overdue';
-                await transaction.save();
-            }
-        }
-        
-        // Get all overdue transactions
-        const overdueTransactions = await Transaction.find({ status: 'overdue' })
-            .populate('book', 'title author ISBN imagePath')
-            .populate('user', 'name email')
-            .sort('-createdAt');
-
-        res.json({
-            success: true,
-            count: overdueTransactions.length,
-            data: overdueTransactions
+        const [transactions, total] = await Promise.all([
+            Transaction.find({ status: 'overdue' })
+                .populate('book', 'title author ISBN imagePath')
+                .populate('user', 'name email')
+                .sort('-createdAt')
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Transaction.countDocuments({ status: 'overdue' })
+        ]);
+            
+        res.json({ 
+            success: true, 
+            count: transactions.length, 
+            total,
+            pages: Math.ceil(total / limit),
+            currentPage: page,
+            data: transactions 
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
 
@@ -351,55 +328,19 @@ exports.getOverdueTransactions = async (req, res) => {
 // @access  Private/Admin
 exports.getStudentDues = async (req, res) => {
     try {
-        const { userId } = req.params;
-        
-        // Get settings for fine calculation
-        const settings = await Settings.getSettings();
-        const finePerDay = settings.finePerDay;
-        
-        // Find active or overdue transactions for this user
         const transactions = await Transaction.find({
-            user: userId,
+            user: req.params.userId,
             status: { $in: ['borrowed', 'overdue'] }
-        }).populate('book', 'title author ISBN');
+        })
+        .populate('book', 'title author ISBN imagePath')
+        .sort('-createdAt')
+        .lean();
         
-        // Check for overdue transactions and calculate fines
-        const today = new Date();
-        const dues = [];
+        await updateOverdueStatus(transactions);
         
-        for (let transaction of transactions) {
-            const dueDate = new Date(transaction.dueDate);
-            
-            // Update status to overdue if past due date
-            if (transaction.status === 'borrowed' && dueDate < today) {
-                transaction.status = 'overdue';
-                await transaction.save();
-            }
-            
-            // Calculate fine if overdue
-            if (dueDate < today) {
-                const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-                const fine = daysOverdue * finePerDay;
-                
-                dues.push({
-                    bookTitle: transaction.book.title,
-                    dueDate: transaction.dueDate,
-                    fine: fine.toFixed(2)
-                });
-            }
-        }
-        
-        res.json({
-            success: true,
-            count: dues.length,
-            data: dues
-        });
+        res.json({ success: true, count: transactions.length, data: transactions });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error retrieving student dues',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
 
@@ -408,126 +349,28 @@ exports.getStudentDues = async (req, res) => {
 // @access  Private/Admin
 exports.issueBook = async (req, res) => {
     try {
-        const { bookId, userId, issueDate } = req.body;
-
-        // Validate input
-        if (!bookId || !userId || !issueDate) {
-            return res.status(400).json({
-                success: false,
-                message: 'Please provide book ID, user ID, and issue date'
-            });
-        }
-
-        // Check if book exists
-        const book = await Book.findById(bookId);
+        const { book, loanDays } = await checkBookAvailability(req.body.bookId, req.body.userId);
         
-        if (!book) {
-            return res.status(404).json({
-                success: false,
-                message: 'Book not found'
-            });
-        }
-
-        // Get the user
-        const user = await User.findById(userId);
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
-
-        // Get borrowing rules from settings
-        const settings = await Settings.getSettings();
-        const userRole = user.role.toLowerCase();
-        
-        // Determine maximum books allowed based on user role
-        const maxBooks = userRole === 'teacher' ? 
-            settings.maxBooksTeacher : settings.maxBooksStudent;
-        
-        // Determine loan period (days) based on user role
-        const loanDays = userRole === 'teacher' ? 
-            settings.maxDaysTeacher : settings.maxDaysStudent;
-        
-        // Check how many books the user has already borrowed
-        const activeBorrows = await Transaction.countDocuments({
-            user: userId,
-            status: { $in: ['borrowed', 'overdue'] }
-        });
-        
-        // Check if user has reached their borrowing limit
-        if (activeBorrows >= maxBooks) {
-            return res.status(400).json({
-                success: false,
-                message: `User has reached their borrowing limit of ${maxBooks} books`
-            });
-        }
-
-        // Check if the user already has an active transaction for this book
-        const existingTransaction = await Transaction.findOne({
-            book: bookId,
-            user: userId,
-            status: { $in: ['borrowed', 'overdue'] }
-        });
-
-        if (existingTransaction) {
-            return res.status(400).json({
-                success: false,
-                message: 'This user has already borrowed this book'
-            });
-        }
-
-        // Get active transactions for this book to determine how many copies are already issued
-        const activeTransactions = await Transaction.countDocuments({
-            book: bookId,
-            status: { $in: ['borrowed', 'overdue'] }
-        });
-
-        // Check if all copies are already issued
-        if (activeTransactions >= book.copies) {
-            return res.status(400).json({
-                success: false,
-                message: `All copies of this book are already issued. Total copies: ${book.copies}, Currently issued: ${activeTransactions}`
-            });
-        }
-
-        // Calculate due date based on loan days from settings
-        const dueDate = new Date(issueDate);
+        const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + loanDays);
-
-        // Create transaction
+        
         const transaction = await Transaction.create({
-            user: userId,
-            book: bookId,
-            issueDate: new Date(issueDate),
-            dueDate: dueDate,
+            user: req.body.userId,
+            book: req.body.bookId,
+            dueDate,
             status: 'borrowed'
         });
-
-        // Update book status only if all copies are now issued
-        const newActiveCount = activeTransactions + 1;
-        if (newActiveCount >= book.copies) {
-            book.status = 'Issued';
-        } else if (book.status !== 'Available' && newActiveCount < book.copies) {
-            // If some copies are now available, update status
-            book.status = 'Available';
-        }
-        await book.save();
-
-        // Populate transaction with book and user details
+        
+        await updateBookStatus(req.body.bookId);
+        
+        // Populate with book and user details for admin UI
         const populatedTransaction = await Transaction.findById(transaction._id)
             .populate('book', 'title author ISBN imagePath')
             .populate('user', 'name email');
-
-        res.status(201).json({
-            success: true,
-            data: populatedTransaction
-        });
+        
+        res.status(201).json({ success: true, data: populatedTransaction });
     } catch (error) {
-        res.status(400).json({
-            success: false,
-            message: error.message
-        });
+        res.status(400).json({ success: false, message: error.message });
     }
 };
 
@@ -536,34 +379,19 @@ exports.issueBook = async (req, res) => {
 // @access  Private/Admin
 exports.getUserActiveTransactions = async (req, res) => {
     try {
-        // Find the active transactions for the specified user
-        const transactions = await Transaction.find({ 
+        const transactions = await Transaction.find({
             user: req.params.userId,
             status: { $in: ['borrowed', 'overdue'] }
         })
-            .populate('book', 'title author ISBN imagePath coverImage')
-            .sort('-createdAt');
-            
-        // Update overdue status
-        const today = new Date();
-        for (let transaction of transactions) {
-            if (transaction.status === 'borrowed' && new Date(transaction.dueDate) < today) {
-                transaction.status = 'overdue';
-                await transaction.save();
-            }
-        }
-
-        res.json({
-            success: true,
-            count: transactions.length,
-            data: transactions
-        });
+        .populate('book', 'title author ISBN imagePath')
+        .sort('-createdAt')
+        .lean();
+        
+        await updateOverdueStatus(transactions);
+        
+        res.json({ success: true, count: transactions.length, data: transactions });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
 
@@ -572,25 +400,32 @@ exports.getUserActiveTransactions = async (req, res) => {
 // @access  Private/Admin
 exports.getUserTransactionHistory = async (req, res) => {
     try {
-        // Find the returned transactions for the specified user
-        const transactions = await Transaction.find({ 
-            user: req.params.userId,
-            status: 'returned'
-        })
-            .populate('book', 'title author ISBN imagePath coverImage')
-            .sort('-createdAt');
-
-        res.json({
-            success: true,
-            count: transactions.length,
-            data: transactions
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 20;
+        const skip = (page - 1) * limit;
+        
+        const [transactions, total] = await Promise.all([
+            Transaction.find({ user: req.params.userId })
+                .populate('book', 'title author ISBN imagePath')
+                .sort('-createdAt')
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Transaction.countDocuments({ user: req.params.userId })
+        ]);
+            
+        await updateOverdueStatus(transactions);
+        
+        res.json({ 
+            success: true, 
+            count: transactions.length, 
+            total,
+            pages: Math.ceil(total / limit),
+            currentPage: page,
+            data: transactions 
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Server Error',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 };
 
@@ -599,58 +434,16 @@ exports.getUserTransactionHistory = async (req, res) => {
 // @access  Private
 exports.getUserStatistics = async (req, res) => {
     try {
-        // Get total borrowed books
-        const totalBorrowed = await Transaction.countDocuments({
-            user: req.user._id
-        });
+        const stats = await Transaction.aggregate([
+            { $match: { user: req.user._id } },
+            { $group: {
+                _id: '$status',
+                count: { $sum: 1 }
+            }}
+        ]);
         
-        // Get current borrowed books
-        const currentBorrowed = await Transaction.countDocuments({
-            user: req.user._id,
-            status: { $in: ['borrowed', 'overdue'] }
-        });
-        
-        // Get overdue books
-        const overdue = await Transaction.countDocuments({
-            user: req.user._id,
-            status: 'overdue'
-        });
-        
-        // Get wishlist items count (assuming this comes from another model)
-        // This is just a placeholder, implement wishlist count based on your DB schema
-        const wishlistItems = 0;
-        
-        // Get recent activities
-        const recentActivities = await Transaction.find({ 
-            user: req.user._id 
-        })
-        .populate('book', 'title author')
-        .sort('-createdAt')
-        .limit(5);
-        
-        // Format the recent activities
-        const formattedActivities = recentActivities.map(transaction => ({
-            id: transaction._id,
-            type: transaction.status === 'returned' ? 'return' : 'borrow',
-            book: transaction.book.title,
-            date: transaction.createdAt
-        }));
-        
-        res.json({
-            success: true,
-            data: {
-                totalBorrowed,
-                currentBorrowed,
-                overdue,
-                wishlistItems,
-                recentActivities: formattedActivities
-            }
-        });
+        res.json({ success: true, data: stats });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: 'Error retrieving user statistics',
-            error: error.message
-        });
+        res.status(500).json({ success: false, message: 'Server Error', error: error.message });
     }
 }; 

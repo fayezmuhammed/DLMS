@@ -4,7 +4,8 @@ const {
     getUserReservations,
     cancelReservation,
     getAllReservations,
-    expireOutdatedReservations
+    expireOutdatedReservations,
+    issueBookFromReservation
 } = require('../controllers/reservationController');
 
 const router = express.Router();
@@ -23,5 +24,6 @@ router.delete('/:id', cancelReservation);
 // Admin routes
 router.get('/all', authorize('admin'), getAllReservations);
 router.put('/expire-outdated', authorize('admin'), expireOutdatedReservations);
+router.post('/:id/issue', authorize('admin'), issueBookFromReservation);
 
 module.exports = router; 

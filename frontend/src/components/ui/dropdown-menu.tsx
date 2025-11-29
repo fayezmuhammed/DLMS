@@ -33,11 +33,8 @@ export const DropdownMenuTrigger: React.FC<{
   };
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      onClick: handleClick,
-      'aria-expanded': isOpen,
-      'aria-haspopup': true,
-    });
+    // Do not pass aria-haspopup via cloneElement config, let user handle it
+    return children;
   }
 
   return (
@@ -101,13 +98,23 @@ export const DropdownMenuItem: React.FC<{
   };
 
   if (asChild && React.isValidElement(children)) {
-    return React.cloneElement(children, {
-      onClick: handleClick,
-      className: `block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 ${
-        children.props.className || ''
-      }`,
-      role: 'menuitem',
-    });
+    const childType = (children as React.ReactElement).type;
+    if (typeof childType === 'string') {
+      // Only add className if it already exists on the child
+      const existingClassName = (children.props as any).className;
+      const propsToAdd: Record<string, any> = {};
+      if (typeof existingClassName === 'string') {
+        propsToAdd.className = `block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 ${existingClassName}`.trim();
+      }
+      // Only add role if it already exists on the child
+      if ('role' in children.props) {
+        propsToAdd.role = 'menuitem';
+      }
+      return React.cloneElement(children, propsToAdd);
+    } else {
+      // Custom component: return as-is
+      return children;
+    }
   }
 
   return (

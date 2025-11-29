@@ -1,56 +1,77 @@
-import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import React, { Suspense, lazy, useState, useEffect, ReactNode } from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Toaster } from "@/components/ui/toaster"
 
-// Use lazy loading for components
-const LoginPage = lazy(() => import('@/pages/LoginPage'));
-const RegisterPage = lazy(() => import('@/pages/RegisterPage')); 
-const VerifyOtpPage = lazy(() => import('@/pages/VerifyOtpPage')); 
-const ForgotPasswordPage = lazy(() => import('@/pages/ForgotPasswordPage'));
-const ResetPasswordPage = lazy(() => import('@/pages/ResetPasswordPage'));
-const HomePage = lazy(() => import('@/pages/HomePage'));
-const BooksPage = lazy(() => import('@/pages/BooksPage'));
-const BookDetailPage = lazy(() => import('@/pages/BookDetailPage'));
-const EBooksPage = lazy(() => import('@/pages/EBooksPage'));
-const EBookDetailPage = lazy(() => import('@/pages/EBookDetailPage'));
-const TransactionsPage = lazy(() => import('@/pages/TransactionsPage'));
-const WishlistPage = lazy(() => import('@/pages/WishlistPage'));
-const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
-const MainLayout = lazy(() => import('@/layouts/MainLayout'));
-const AdminLayout = lazy(() => import('@/layouts/AdminLayout'));
-
-// Admin pages
-const DashboardPage = lazy(() => import('@/pages/admin/DashboardPage'));
-const ManageBooksPage = lazy(() => import('@/pages/admin/ManageBooksPage'));
-const ManageUsersPage = lazy(() => import('@/pages/admin/ManageUsersPage'));
-const UserDetailPage = lazy(() => import('@/pages/admin/UserDetailPage'));
-const AddBookPage = lazy(() => import('@/pages/admin/AddBookPage'));
-const EditBookPage = lazy(() => import('@/pages/admin/EditBookPage'));
-const IssueBookPage = lazy(() => import('@/pages/admin/IssueBookPage'));
-// Additional admin pages (even if they're placeholders for now)
-const ManageEBooksPage = lazy(() => import('@/pages/admin/ManageEBooksPage'));
-const TransactionsPageAdmin = lazy(() => import('@/pages/admin/TransactionsPage'));
-const ReportsPage = lazy(() => import('@/pages/admin/ReportsPage'));
-const NoDuePage = lazy(() => import('@/pages/admin/NoDuePage'));
-const SettingsPage = lazy(() => import('@/pages/admin/SettingsPage'));
-
-// Import the admin BookDetailPage with a different name to avoid conflicts
-const AdminBookDetailPage = lazy(() => import('@/pages/admin/BookDetailPage'));
-
-// Import the new pages
-import ReservationsPage from '@/pages/ReservationsPage';
-import ManageReservationsPage from '@/pages/admin/ManageReservationsPage';
-
-// Loading component
+// Lightweight Loading component to show immediately
 const Loading = () => (
-  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-    <div>Loading...</div>
+  <div className="flex justify-center items-center h-screen">
+    <div className="animate-pulse">Loading...</div>
   </div>
 );
 
-// Error boundary component
-class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasError: boolean, error: Error | null}> {
-  constructor(props: {children: React.ReactNode}) {
+// Prefetch component loader
+const prefetchComponent = (factory: () => Promise<{ default: React.ComponentType<any> }>) => {
+  const Component = lazy(factory);
+  void factory();
+  return (props: any) => <Component {...props} />;
+};
+
+// Lazy loaded components with prefetch
+const components = {
+  auth: {
+    LoginPage: prefetchComponent(() => import('@/pages/LoginPage')),
+    RegisterPage: prefetchComponent(() => import('@/pages/RegisterPage')),
+    VerifyOtpPage: prefetchComponent(() => import('@/pages/VerifyOtpPage')),
+    ForgotPasswordPage: prefetchComponent(() => import('@/pages/ForgotPasswordPage')),
+    ResetPasswordPage: prefetchComponent(() => import('@/pages/ResetPasswordPage'))
+  },
+  main: {
+    HomePage: prefetchComponent(() => import('@/pages/HomePage')),
+    BooksPage: prefetchComponent(() => import('@/pages/BooksPage')),
+    BookDetailPage: prefetchComponent(() => import('@/pages/BookDetailPage')),
+    EBooksPage: prefetchComponent(() => import('@/pages/EBooksPage')),
+    EBookDetailPage: prefetchComponent(() => import('@/pages/EBookDetailPage')),
+    TransactionsPage: prefetchComponent(() => import('@/pages/TransactionsPage')),
+    WishlistPage: prefetchComponent(() => import('@/pages/WishlistPage')),
+    ProfilePage: prefetchComponent(() => import('@/pages/ProfilePage')),
+    ReservationsPage: prefetchComponent(() => import('@/pages/ReservationsPage'))
+  },
+  admin: {
+    DashboardPage: prefetchComponent(() => import('@/pages/admin/DashboardPage')),
+    ManageBooksPage: prefetchComponent(() => import('@/pages/admin/ManageBooksPage')),
+    ManageUsersPage: prefetchComponent(() => import('@/pages/admin/ManageUsersPage')),
+    UserDetailPage: prefetchComponent(() => import('@/pages/admin/UserDetailPage')),
+    AddBookPage: prefetchComponent(() => import('@/pages/admin/AddBookPage')),
+    EditBookPage: prefetchComponent(() => import('@/pages/admin/EditBookPage')),
+    IssueBookPage: prefetchComponent(() => import('@/pages/admin/IssueBookPage')),
+    ManageEBooksPage: prefetchComponent(() => import('@/pages/admin/ManageEBooksPage')),
+    AddEBookPage: prefetchComponent(() => import('@/pages/admin/AddEBookPage')),
+    EditEBookPage: prefetchComponent(() => import('@/pages/admin/EditEBookPage')),
+    TransactionsPage: prefetchComponent(() => import('@/pages/admin/TransactionsPage')),
+    ReportsPage: prefetchComponent(() => import('@/pages/admin/ReportsPage')),
+    NoDuePage: prefetchComponent(() => import('@/pages/admin/NoDuePage')),
+    SettingsPage: prefetchComponent(() => import('@/pages/admin/SettingsPage')),
+    BookDetailPage: prefetchComponent(() => import('@/pages/admin/BookDetailPage')),
+    ManageReservationsPage: prefetchComponent(() => import('@/pages/admin/ManageReservationsPage'))
+  },
+  layouts: {
+    MainLayout: prefetchComponent(() => import('@/layouts/MainLayout')),
+    AdminLayout: prefetchComponent(() => import('@/layouts/AdminLayout'))
+  }
+};
+
+// Optimized Error Boundary
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null };
   }
@@ -59,217 +80,176 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
     return { hasError: true, error };
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  componentDidCatch(_: Error) {
+    // You can log errorInfo here if needed
+  }
+
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '2rem', color: 'red' }}>
+        <div className="p-8 text-red-500">
           <h1>Something went wrong.</h1>
-          <p>{this.state.error?.message || 'Unknown error'}</p>
-          <button onClick={() => window.location.reload()}>Refresh Page</button>
+          <p>{(this.state.error as Error)?.message || 'Unknown error'}</p>
+          <button 
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded"
+            onClick={() => window.location.reload()}
+          >
+            Refresh Page
+          </button>
         </div>
       );
     }
-
     return this.props.children;
   }
 }
 
+// Prefetch adjacent routes
+interface PrefetchOnViewProps {
+  children: ReactNode;
+}
+const PrefetchOnView = ({ children }: PrefetchOnViewProps) => {
+  const location = useLocation();
+  useEffect(() => {
+    // Prefetch common pages based on current location
+    const prefetchMap: Record<string, string[]> = {
+      '/': ['BooksPage', 'EBooksPage'],
+      '/books': ['BookDetailPage', 'HomePage'],
+      '/ebooks': ['EBookDetailPage', 'HomePage'],
+      '/admin': ['admin/DashboardPage', 'admin/ManageBooksPage'],
+      '/admin/books': ['admin/ManageUsersPage', 'admin/TransactionsPage']
+    };
+    const pagesToPrefetch = prefetchMap[location.pathname];
+    if (pagesToPrefetch) {
+      pagesToPrefetch.forEach((page: string) => {
+        const importPath = `@/pages/${page}`;
+        import(/* @vite-ignore */ importPath).catch(() => {});
+      });
+    }
+  }, [location.pathname]);
+  return <>{children}</>;
+};
+
+interface AuthState {
+  isAuthenticated: boolean;
+  user: { role?: string } | null;
+  isLoading: boolean;
+}
+
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<any>(null);
+  const [auth, setAuth] = useState<AuthState>({ isAuthenticated: false, user: null, isLoading: true });
 
   useEffect(() => {
     const checkAuth = () => {
-      const storedUser = localStorage.getItem('user');
-      const isAuthFlag = localStorage.getItem('isAuthenticated');
-      
-      if (storedUser && isAuthFlag) {
-        try {
-          const parsedUser = JSON.parse(storedUser);
-          setUser(parsedUser);
-          setIsAuthenticated(true);
-        } catch (err) {
-          console.error('Error parsing user data:', err);
-          localStorage.removeItem('user');
-          localStorage.removeItem('isAuthenticated');
-          setUser(null);
-          setIsAuthenticated(false);
+      try {
+        const storedUser = localStorage.getItem('user');
+        const isAuthFlag = localStorage.getItem('isAuthenticated');
+        if (storedUser && isAuthFlag) {
+          setAuth({ isAuthenticated: true, user: JSON.parse(storedUser), isLoading: false });
+        } else {
+          setAuth({ isAuthenticated: false, user: null, isLoading: false });
         }
-      } else {
-        setUser(null);
-        setIsAuthenticated(false);
+      } catch (err) {
+        console.error('Error parsing user data:', err);
+        localStorage.removeItem('user');
+        localStorage.removeItem('isAuthenticated');
+        setAuth({ isAuthenticated: false, user: null, isLoading: false });
       }
-      setIsLoading(false);
     };
-
     checkAuth();
-
-    // Listen for storage events (for multi-tab support)
     window.addEventListener('storage', checkAuth);
     return () => window.removeEventListener('storage', checkAuth);
   }, []);
 
-  // Function to handle login
-  const handleLogin = (userData: any) => {
-    localStorage.setItem('user', JSON.stringify(userData));
-    localStorage.setItem('isAuthenticated', 'true');
-    setUser(userData);
-    setIsAuthenticated(true);
+  const handleAuth = (action: 'login' | 'logout', userData?: { role?: string }) => {
+    if (action === 'login' && userData) {
+      localStorage.setItem('user', JSON.stringify(userData));
+      localStorage.setItem('isAuthenticated', 'true');
+      setAuth({ ...auth, isAuthenticated: true, user: userData });
+    } else {
+      localStorage.removeItem('user');
+      localStorage.removeItem('isAuthenticated');
+      setAuth({ ...auth, isAuthenticated: false, user: null });
+    }
   };
 
-  // Function to handle logout
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('isAuthenticated');
-    setUser(null);
-    setIsAuthenticated(false);
-  };
+  if (auth.isLoading) return <Loading />;
 
-  if (isLoading) {
-    return <Loading />;
-  }
+  const isAdmin = auth.user?.role?.toLowerCase() === 'admin';
 
   return (
     <ErrorBoundary>
-      <Suspense fallback={<Loading />}>
-        <Routes>
-          {/* Public Routes */}
-          <Route 
-            path="/login" 
-            element={
-              isAuthenticated ? (
-                <Navigate to={user?.role?.toLowerCase() === 'admin' ? '/admin' : '/'} replace />
-              ) : (
-                <LoginPage onLogin={handleLogin} />
-              )
-            }
-          />
-          <Route 
-            path="/register" 
-            element={
-              isAuthenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <RegisterPage onRegister={handleLogin} />
-              )
-            }
-          />
-          <Route 
-            path="/verify-otp" 
-            element={
-              isAuthenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <VerifyOtpPage />
-              )
-            }
-          />
-          <Route 
-            path="/forgot-password" 
-            element={
-              isAuthenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <ForgotPasswordPage />
-              )
-            }
-          />
-          <Route 
-            path="/reset-password/:resettoken" 
-            element={
-              isAuthenticated ? (
-                <Navigate to="/" replace />
-              ) : (
-                <ResetPasswordPage />
-              )
-            }
-          />
-          
-          {/* Admin Routes */}
-          <Route 
-            path="/admin/*" 
-            element={
-              !isAuthenticated ? (
-                <Navigate to="/login" replace />
-              ) : user?.role?.toLowerCase() !== 'admin' ? (
-                <Navigate to="/" replace />
-              ) : (
-                <AdminLayout onLogout={handleLogout} />
-              )
-            }
-          >
-            <Route index element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="books" element={<ManageBooksPage />} />
-            <Route path="books/add" element={<AddBookPage />} />
-            <Route path="books/edit/:id" element={<EditBookPage />} />
-            <Route path="users" element={<ManageUsersPage />} />
-            <Route path="users/:userId" element={<UserDetailPage />} />
-            <Route path="ebooks" element={<ManageEBooksPage />} />
-            <Route path="transactions" element={<TransactionsPageAdmin />} />
-            <Route path="transactions/issue" element={<IssueBookPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="no-due" element={<NoDuePage />} />
-            <Route path="settings" element={<SettingsPage />} />
-            <Route path="books/:id" element={<AdminBookDetailPage />} />
-            <Route path="reservations" element={<ManageReservationsPage />} />
-          </Route>
+      <PrefetchOnView>
+        <Suspense fallback={<Loading />}>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/login" element={
+              auth.isAuthenticated ? <Navigate to={isAdmin ? '/admin' : '/'} replace /> : 
+              <components.auth.LoginPage onLogin={(userData: { role?: string }) => handleAuth('login', userData)} />
+            } />
+            <Route path="/register" element={
+              auth.isAuthenticated ? <Navigate to="/" replace /> : 
+              <components.auth.RegisterPage onRegister={(userData: { role?: string }) => handleAuth('login', userData)} />
+            } />
+            <Route path="/verify-otp" element={
+              auth.isAuthenticated ? <Navigate to="/" replace /> : <components.auth.VerifyOtpPage />
+            } />
+            <Route path="/forgot-password" element={
+              auth.isAuthenticated ? <Navigate to="/" replace /> : <components.auth.ForgotPasswordPage />
+            } />
+            <Route path="/reset-password/:resettoken" element={
+              auth.isAuthenticated ? <Navigate to="/" replace /> : <components.auth.ResetPasswordPage />
+            } />
+            
+            {/* Admin Routes */}
+            <Route path="/admin/*" element={
+              !auth.isAuthenticated ? <Navigate to="/login" replace /> :
+              !isAdmin ? <Navigate to="/" replace /> :
+              <components.layouts.AdminLayout onLogout={() => handleAuth('logout')} />
+            }>
+              <Route index element={<Navigate to="dashboard" replace />} />
+              <Route path="dashboard" element={<components.admin.DashboardPage />} />
+              <Route path="books" element={<components.admin.ManageBooksPage />} />
+              <Route path="books/add" element={<components.admin.AddBookPage />} />
+              <Route path="books/edit/:id" element={<components.admin.EditBookPage />} />
+              <Route path="users" element={<components.admin.ManageUsersPage />} />
+              <Route path="users/:userId" element={<components.admin.UserDetailPage />} />
+              <Route path="ebooks" element={<components.admin.ManageEBooksPage />} />
+              <Route path="ebooks/add" element={<components.admin.AddEBookPage />} />
+              <Route path="ebooks/edit/:id" element={<components.admin.EditEBookPage />} />
+              <Route path="transactions" element={<components.admin.TransactionsPage />} />
+              <Route path="transactions/issue" element={<components.admin.IssueBookPage />} />
+              <Route path="reports" element={<components.admin.ReportsPage />} />
+              <Route path="no-due" element={<components.admin.NoDuePage />} />
+              <Route path="settings" element={<components.admin.SettingsPage />} />
+              <Route path="books/:id" element={<components.admin.BookDetailPage />} />
+              <Route path="reservations" element={<components.admin.ManageReservationsPage />} />
+            </Route>
 
-          {/* User Routes */}
-          <Route element={<MainLayout onLogout={handleLogout} />}>
-            <Route index element={<HomePage />} />
-            <Route path="books" element={<BooksPage />} />
-            <Route path="books/:id" element={<BookDetailPage />} />
-            <Route path="ebooks" element={<EBooksPage />} />
-            <Route 
-              path="ebooks/:id" 
-              element={<EBookDetailPage />} 
-            />
-            <Route 
-              path="transactions" 
-              element={
-                !isAuthenticated ? (
-                  <Navigate to="/login" replace />
-                ) : (
-                  <TransactionsPage />
-                )
-              } 
-            />
-            <Route 
-              path="wishlist" 
-              element={
-                !isAuthenticated ? (
-                  <Navigate to="/login" replace />
-                ) : (
-                  <WishlistPage />
-                )
-              } 
-            />
-            <Route 
-              path="profile" 
-              element={
-                !isAuthenticated ? (
-                  <Navigate to="/login" replace />
-                ) : (
-                  <ProfilePage />
-                )
-              } 
-            />
-            <Route 
-              path="reservations" 
-              element={
-                !isAuthenticated ? (
-                  <Navigate to="/login" replace />
-                ) : (
-                  <ReservationsPage />
-                )
-              } 
-            />
-          </Route>
-        </Routes>
-        <Toaster />
-      </Suspense>
+            {/* User Routes */}
+            <Route element={<components.layouts.MainLayout onLogout={() => handleAuth('logout')} />}>
+              <Route index element={<components.main.HomePage />} />
+              <Route path="books" element={<components.main.BooksPage />} />
+              <Route path="books/:id" element={<components.main.BookDetailPage />} />
+              <Route path="ebooks" element={<components.main.EBooksPage />} />
+              <Route path="ebooks/:id" element={<components.main.EBookDetailPage />} />
+              <Route path="transactions" element={
+                !auth.isAuthenticated ? <Navigate to="/login" replace /> : <components.main.TransactionsPage />
+              } />
+              <Route path="wishlist" element={
+                !auth.isAuthenticated ? <Navigate to="/login" replace /> : <components.main.WishlistPage />
+              } />
+              <Route path="profile" element={
+                !auth.isAuthenticated ? <Navigate to="/login" replace /> : <components.main.ProfilePage />
+              } />
+              <Route path="reservations" element={
+                !auth.isAuthenticated ? <Navigate to="/login" replace /> : <components.main.ReservationsPage />
+              } />
+            </Route>
+          </Routes>
+          <Toaster />
+        </Suspense>
+      </PrefetchOnView>
     </ErrorBoundary>
   );
 }

@@ -1,5 +1,8 @@
 const Reservation = require('../models/Reservation');
 const Book = require('../models/Book');
+const Transaction = require('../models/Transaction');
+const User = require('../models/User');
+const Settings = require('../models/Settings');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 
@@ -160,5 +163,68 @@ exports.expireOutdatedReservations = asyncHandler(async (req, res, next) => {
         count: expiredReservations.length,
         message: `${expiredReservations.length} outdated reservations expired successfully`,
         data: expiredReservations
+    });
+});
+
+// @desc    Issue book from reservation (admin only)
+// @route   POST /api/reservations/:id/issue
+// @access  Private/Admin
+exports.issueBookFromReservation = asyncHandler(async (req, res, next) => {
+    // Find the reservation
+    const reservation = await Reservation.findById(req.params.id);
+    
+    if (!reservation) {
+        return next(new ErrorResponse(`Reservation not found with id of ${req.params.id}`, 404));
+    }
+    
+    // Check if reservation is active
+    if (reservation.status !== 'active') {
+        return next(new ErrorResponse(`Only active reservations can be issued. Current status: ${reservation.status}`, 400));
+    }
+    
+    // Get book and user details
+    const [book, user] = await Promise.all([
+        Book.findById(reservation.book),
+        User.findById(reservation.user)
+    ]);
+    
+    if (!book || !user) {
+        return next(new ErrorResponse('Book or user associated with this reservation not found', 404));
+    }
+    
+    // Get settings for loan period
+    const settings = await Settings.getSettings();
+    const userRole = user.role.toLowerCase();
+    const loanDays = userRole === 'teacher' ? settings.maxDaysTeacher : settings.maxDaysStudent;
+    
+    // Create due date
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + loanDays);
+    
+    // Create transaction
+    const transaction = await Transaction.create({
+        user: reservation.user,
+        book: reservation.book,
+        issueDate: new Date(),
+        dueDate,
+        status: 'borrowed',
+        notes: `Issued from reservation ID: ${reservation._id}`
+    });
+    
+    // Update reservation status to completed
+    reservation.status = 'completed';
+    await reservation.save();
+    
+    // Update book status to 'Issued' if needed
+    book.status = 'Issued';
+    await book.save();
+    
+    res.status(200).json({
+        success: true,
+        message: 'Book issued successfully from reservation',
+        data: {
+            reservation,
+            transaction
+        }
     });
 }); 

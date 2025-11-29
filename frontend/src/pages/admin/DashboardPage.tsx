@@ -360,7 +360,7 @@ const DashboardPage: React.FC = () => {
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-white border-b">
                   <tr>
                     <th className="text-left py-3 px-4 font-semibold text-gray-600">Admission No.</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-600">User Name</th>
@@ -401,7 +401,7 @@ const DashboardPage: React.FC = () => {
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full bg-white">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-white border-b">
                   <tr>
                     <th className="text-left py-3 px-4 font-semibold text-gray-600">Book No.</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-600">Title</th>

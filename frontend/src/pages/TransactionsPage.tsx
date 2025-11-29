@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 import { Transaction, transactionService } from '@/services/transactionService';
 import { toast } from '@/components/ui/use-toast';
 import { Book } from '@/services/bookService';
 import settingsService, { BorrowingRules } from '@/services/settingsService';
+import { AlertCircle, BookCopy, Check, Clock, IndianRupee, RefreshCw, Undo2 } from 'lucide-react';
 
 const TransactionsPage: React.FC = () => {
   const [currentTransactions, setCurrentTransactions] = useState<Transaction[]>([]);
@@ -23,6 +32,7 @@ const TransactionsPage: React.FC = () => {
   });
   const [userRole, setUserRole] = useState<string>('student');
   const [returningId, setReturningId] = useState<string | null>(null);
+  const [borrowingId, setBorrowingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTransactions();
@@ -91,6 +101,7 @@ const TransactionsPage: React.FC = () => {
     }
     
     try {
+      setBorrowingId(bookId);
       const response = await transactionService.borrowBook(bookId);
       
       if (response.success) {
@@ -114,6 +125,8 @@ const TransactionsPage: React.FC = () => {
         description: "Failed to borrow the book. Please try again later.",
         variant: "destructive",
       });
+    } finally {
+      setBorrowingId(null);
     }
   };
 
@@ -200,6 +213,39 @@ const TransactionsPage: React.FC = () => {
     };
   };
 
+  // Handle returning a book
+  const handleReturnBook = async (transactionId: string) => {
+    try {
+      setReturningId(transactionId);
+      
+      const response = await transactionService.returnBook(transactionId, true);
+      
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: "Book has been returned successfully.",
+        });
+        // Refresh the transactions list
+        fetchTransactions();
+      } else {
+        toast({
+          title: "Failed to return book",
+          description: response.message || "Please try again later.",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      console.error('Error returning book:', err);
+      toast({
+        title: "Error",
+        description: err.response?.data?.message || "Failed to return book. Please try again later.",
+        variant: "destructive",
+      });
+    } finally {
+      setReturningId(null);
+    }
+  };
+
   // Add the borrowing rules info component
   const BorrowingRulesInfo = () => {
     const maxBooks = userRole === 'teacher' ? borrowingRules.maxBooksTeacher : borrowingRules.maxBooksStudent;
@@ -226,191 +272,217 @@ const TransactionsPage: React.FC = () => {
     );
   };
 
-  // Handle returning a book
-  const handleReturnBook = async (transactionId: string) => {
-    try {
-      setReturningId(transactionId);
-      
-      const response = await transactionService.returnBook(transactionId, true);
-      
-      if (response.success) {
-        toast({
-          title: "Success",
-          description: "Book has been returned successfully.",
-        });
-        // Refresh the transactions list
-        fetchTransactions();
-      } else {
-        toast({
-          title: "Failed to return book",
-          description: response.message || "Please try again later.",
-          variant: "destructive",
-        });
-      }
-    } catch (err: any) {
-      console.error('Error returning book:', err);
-      toast({
-        title: "Error",
-        description: err.response?.data?.message || "Failed to return the book. Please try again later.",
-        variant: "destructive",
-      });
-    } finally {
-      setReturningId(null);
-    }
-  };
-
   if (loading) {
-    return <div className="text-center py-12">Loading transactions...</div>;
+    return <div className="text-center py-12">Loading your transactions...</div>;
   }
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold mb-4">Error</h1>
-        <p className="text-muted-foreground mb-6">{error}</p>
-        <Button onClick={() => fetchTransactions()}>Try Again</Button>
-      </div>
-    );
-  }
+  const displayTransactions = activeTab === 'current' ? currentTransactions : transactionHistory;
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">My Transactions</h1>
-        <p className="text-muted-foreground mt-2">
-          View and manage your book borrowing history
-        </p>
+    <div className="container py-8 max-w-6xl">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">My Borrowing History</h1>
+        <Button onClick={fetchTransactions} variant="outline" size="sm">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Refresh
+        </Button>
       </div>
 
       <BorrowingRulesInfo />
 
-      <Tabs defaultValue="current" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="current">Current Borrows</TabsTrigger>
-          <TabsTrigger value="history">Transaction History</TabsTrigger>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-start mb-6">
+          <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium">Error loading transactions</p>
+            <p className="text-sm">{error}</p>
+          </div>
+        </div>
+      )}
+
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="mb-4">
+          <TabsTrigger value="current">Current Borrows ({currentTransactions.length})</TabsTrigger>
+          <TabsTrigger value="history">Borrowing History ({transactionHistory.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="current" className="space-y-6">
-          {currentTransactions.length > 0 ? (
-            currentTransactions.map((transaction) => {
-              const book = getBookDetails(transaction);
-              return (
-                <Card key={transaction._id} className="overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="flex-grow space-y-4">
-                      <div>
-                        <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
-                        <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Borrow Date</p>
-                          <p className="font-medium">{formatDate(transaction.issueDate)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Due Date</p>
-                          <p className="font-medium">{formatDate(transaction.dueDate)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Badge className={getStatusColor(transaction.status)}>
-                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                        </Badge>
-                        {transaction.status === 'borrowed' && (
-                          <div className="text-sm">
-                            {calculateDaysLeft(transaction.dueDate)} days remaining
-                          </div>
-                        )}
-                        {transaction.status === 'overdue' && (
-                          <div className="text-sm text-red-600">
-                            {calculateDaysOverdue(transaction.dueDate)} days overdue
-                            <span className="block font-medium">Fine: ₹{calculateFine(transaction.dueDate).toFixed(2)}</span>
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          {transaction.status === 'overdue' && (
-                            <>
-                              <Button 
-                                variant="secondary"
-                                className="bg-blue-100 hover:bg-blue-200 text-blue-800"
-                                onClick={() => handlePayFine(transaction._id, calculateFine(transaction.dueDate))}
-                              >
-                                Pay Fine
-                              </Button>
-                              <Button 
-                                variant="outline"
-                                disabled={returningId === transaction._id}
-                                onClick={() => handleReturnBook(transaction._id)}
-                              >
-                                {returningId === transaction._id ? 'Processing...' : 'Mark as Returned'}
-                              </Button>
-                            </>
-                          )}
-                          {transaction.status === 'borrowed' && (
+          {currentTransactions.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <BookCopy className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Active Borrows</h3>
+                <p className="text-muted-foreground mb-4">
+                  You don't have any books checked out at the moment.
+                </p>
+                <Button asChild>
+                  <a href="/books">Browse Books</a>
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Currently Borrowed Books</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Book</TableHead>
+                      <TableHead>Borrowed On</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Time Remaining</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentTransactions.map((transaction) => {
+                      const book = getBookDetails(transaction);
+                      const isOverdue = transaction.status === 'overdue';
+                      const daysLeft = calculateDaysLeft(transaction.dueDate);
+                      const daysOverdue = calculateDaysOverdue(transaction.dueDate);
+                      const fine = calculateFine(transaction.dueDate);
+                      
+                      return (
+                        <TableRow key={transaction._id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{book.title}</div>
+                              <div className="text-xs text-muted-foreground">{book.author}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatDate(transaction.issueDate)}</TableCell>
+                          <TableCell>{formatDate(transaction.dueDate)}</TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(transaction.status)}>
+                              {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {isOverdue ? (
+                              <div className="flex items-center text-red-600">
+                                <span>{daysOverdue} days overdue</span>
+                                <div className="ml-2 text-xs">
+                                  <IndianRupee className="inline h-3 w-3 mr-1" />
+                                  <span>{fine}</span>
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-amber-600">{daysLeft} days left</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
                             <Button 
                               variant="outline"
+                              size="sm"
                               disabled={returningId === transaction._id}
                               onClick={() => handleReturnBook(transaction._id)}
+                              className="mr-2"
                             >
-                              {returningId === transaction._id ? 'Processing...' : 'Mark as Returned'}
+                              {returningId === transaction._id ? (
+                                'Processing...'
+                              ) : (
+                                <>
+                                  <Check className="mr-1 h-4 w-4" />
+                                  Return
+                                </>
+                              )}
                             </Button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })
-          ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No current borrows</p>
-            </div>
+                            {isOverdue && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handlePayFine(transaction._id, fine)}
+                              >
+                                <IndianRupee className="mr-1 h-4 w-4" />
+                                Pay Fine
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
         <TabsContent value="history" className="space-y-6">
-          {transactionHistory.length > 0 ? (
-            transactionHistory.map((transaction) => {
-              const book = getBookDetails(transaction);
-              return (
-                <Card key={transaction._id} className="overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="flex-grow space-y-4">
-                      <div>
-                        <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
-                        <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Borrow Date</p>
-                          <p className="font-medium">{formatDate(transaction.issueDate)}</p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-muted-foreground">Return Date</p>
-                          <p className="font-medium">{transaction.returnDate ? formatDate(transaction.returnDate) : 'N/A'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <Badge className={getStatusColor(transaction.status)}>
-                          {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
-                        </Badge>
-                        <Button 
-                          variant="outline"
-                          onClick={() => handleBorrowAgain(typeof transaction.book === 'object' ? transaction.book._id : transaction.book)}
-                        >
-                          Borrow Again
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })
+          {transactionHistory.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <BookCopy className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Borrowing History</h3>
+                <p className="text-muted-foreground">
+                  You haven't borrowed any books yet.
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No transaction history</p>
-            </div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Previously Borrowed Books</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Book</TableHead>
+                      <TableHead>Borrowed On</TableHead>
+                      <TableHead>Returned On</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {transactionHistory.map((transaction) => {
+                      const book = getBookDetails(transaction);
+                      
+                      // Calculate borrowing duration in days
+                      const issueDate = new Date(transaction.issueDate);
+                      const returnDate = new Date(transaction.returnDate || transaction.dueDate);
+                      const durationMs = returnDate.getTime() - issueDate.getTime();
+                      const durationDays = Math.ceil(durationMs / (1000 * 60 * 60 * 24));
+                      
+                      return (
+                        <TableRow key={transaction._id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{book.title}</div>
+                              <div className="text-xs text-muted-foreground">{book.author}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatDate(transaction.issueDate)}</TableCell>
+                          <TableCell>{formatDate(transaction.returnDate || '')}</TableCell>
+                          <TableCell>{durationDays} days</TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              disabled={borrowingId === book.id}
+                              onClick={() => handleBorrowAgain(book.id)}
+                            >
+                              {borrowingId === book.id ? (
+                                'Processing...'
+                              ) : (
+                                <>
+                                  <Undo2 className="mr-1 h-4 w-4" />
+                                  Borrow Again
+                                </>
+                              )}
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

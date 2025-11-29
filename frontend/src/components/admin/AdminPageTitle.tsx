@@ -7,10 +7,10 @@ interface AdminPageTitleProps {
 
 const AdminPageTitle: React.FC<AdminPageTitleProps> = ({ title, description }) => {
   return (
-    <div className="mb-6">
+    <div className="mb-5">
       <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
       {description && (
-        <p className="text-muted-foreground mt-1">{description}</p>
+        <p className="text-muted-foreground mt-1 max-w-3xl">{description}</p>
       )}
     </div>
   );

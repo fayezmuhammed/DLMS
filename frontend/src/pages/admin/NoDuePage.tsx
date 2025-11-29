@@ -46,15 +46,19 @@ const printStyles = `
 interface ActiveBorrowing {
   bookTitle: string;
   dueDate: string;
+  transactionId?: string;
+  bookId?: string;
 }
 
 interface Transaction {
   status: string;
   book: {
     title: string;
+    bookNo?: string;
     [key: string]: any;
   };
   dueDate: string;
+  _id?: string;
   [key: string]: any;
 }
 
@@ -259,15 +263,25 @@ const NoDuePage = () => {
         // Safely access nested properties
         const bookTitle = transaction && transaction.book && transaction.book.title 
           ? transaction.book.title 
-          : 'Unknown Book';
+          : transaction && transaction.book && transaction.book.bookTitle
+            ? transaction.book.bookTitle
+            : 'Unknown Book';
         
         const dueDate = transaction && transaction.dueDate 
           ? transaction.dueDate 
           : new Date().toISOString();
+        
+        // Include additional details
+        const transactionId = transaction && transaction._id;
+        const bookId = transaction && transaction.book && transaction.book._id;
+        const bookNo = transaction && transaction.book && transaction.book.bookNo;
           
         return {
           bookTitle,
-          dueDate
+          dueDate,
+          transactionId,
+          bookId,
+          bookNo
         };
       });
       
@@ -306,16 +320,28 @@ const NoDuePage = () => {
     setShowPreview(false); // Always start with preview hidden
     setStudent(null);
     
+    // Format search query - first try uppercase, then as-is if that fails
+    const formattedQuery = searchQuery.trim().toUpperCase();
+    const originalQuery = searchQuery.trim();
+    
     try {
-      // Get student information by admission number
-      console.log('Fetching student data for admission number:', searchQuery);
-      const studentResponse = await studentService.getStudentByAdmissionNumber(searchQuery);
-      console.log('Student response:', studentResponse);
+      // Get student information by admission number (try uppercase first)
+      console.log('Fetching student data for admission number:', formattedQuery);
+      let studentResponse = await studentService.getStudentByAdmissionNumber(formattedQuery);
       
+      // If first attempt fails, try with original case
+      if (!studentResponse.success && formattedQuery !== originalQuery) {
+        console.log('Uppercase search failed, trying with original case:', originalQuery);
+        studentResponse = await studentService.getStudentByAdmissionNumber(originalQuery);
+      }
+      
+      // If both attempts fail, throw error
       if (!studentResponse.success || !studentResponse.data) {
-        throw new Error('Student not found');
+        // Try a more informative error message
+        throw new Error(studentResponse.message || 'Student not found');
       }
 
+      console.log('Student response:', studentResponse);
       const foundStudent = studentResponse.data;
       setStudent(foundStudent);
       
@@ -387,6 +413,11 @@ const NoDuePage = () => {
     }
   };
 
+  // Calculate total fine amount from all dues
+  const calculateTotalFine = () => {
+    return dues.reduce((total, due) => total + (due.fine || 0), 0);
+  };
+
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">No Due Certificate</h1>
@@ -418,35 +449,105 @@ const NoDuePage = () => {
           <CardContent>
             {dues.length > 0 ? (
               <div>
-                <h3 className="text-lg font-semibold text-red-600 mb-4">Outstanding Dues</h3>
-                <div className="space-y-2">
-                  {dues.map((due, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-red-50 rounded">
-                      <div>
-                        <p className="font-medium">{due.bookTitle}</p>
-                        <p className="text-sm text-gray-600">Due Date: {format(new Date(due.dueDate), 'PPP')}</p>
-                      </div>
-                      <p className="font-semibold text-red-600">₹{due.fine}</p>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <p className="text-sm text-gray-600">Admission Number</p>
+                    <p className="font-medium">{student.admissionNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Name</p>
+                    <p className="font-medium">{student.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Batch</p>
+                    <p className="font-medium">{student.batch}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Email</p>
+                    <p className="font-medium">{student.email}</p>
+                  </div>
                 </div>
+
+                <h3 className="text-lg font-semibold text-red-600 mb-4">Outstanding Dues</h3>
+                <div className="overflow-hidden rounded-lg border">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left p-3 font-semibold text-sm">Book Title</th>
+                        <th className="text-left p-3 font-semibold text-sm">Due Date</th>
+                        <th className="text-right p-3 font-semibold text-sm">Fine Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dues.map((due, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="p-3">
+                            {due.bookTitle ||
+                             due.book?.title ||
+                             due.title ||
+                             due.book_name ||
+                             due.book?.bookTitle ||
+                             'Unknown Book'}
+                          </td>
+                          <td className="p-3">{format(new Date(due.dueDate), 'PPP')}</td>
+                          <td className="p-3 text-right font-medium text-red-600">₹{(due.fine || 0).toFixed(2)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t bg-red-50">
+                        <td colSpan={2} className="p-3 font-semibold text-right">Total Fine:</td>
+                        <td className="p-3 text-right font-bold text-red-600">₹{calculateTotalFine().toFixed(2)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
                 <p className="mt-4 text-red-600 font-medium">
                   Please clear all dues before requesting a No Due Certificate.
                 </p>
               </div>
             ) : activeBorrowings.length > 0 ? (
               <div>
-                <h3 className="text-lg font-semibold text-amber-600 mb-4">Active Borrowings</h3>
-                <div className="space-y-2">
-                  {activeBorrowings.map((item, index) => (
-                    <div key={index} className="flex justify-between items-center p-2 bg-amber-50 rounded">
-                      <div>
-                        <p className="font-medium">{item.bookTitle}</p>
-                        <p className="text-sm text-gray-600">Due Date: {safeFormatDate(item.dueDate)}</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div>
+                    <p className="text-sm text-gray-600">Admission Number</p>
+                    <p className="font-medium">{student.admissionNumber}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Name</p>
+                    <p className="font-medium">{student.name}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Batch</p>
+                    <p className="font-medium">{student.batch}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600">Email</p>
+                    <p className="font-medium">{student.email}</p>
+                  </div>
                 </div>
+
+                <h3 className="text-lg font-semibold text-amber-600 mb-4">Active Borrowings</h3>
+                <div className="overflow-hidden rounded-lg border">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="text-left p-3 font-semibold text-sm">Book Title</th>
+                        <th className="text-left p-3 font-semibold text-sm">Book No.</th>
+                        <th className="text-left p-3 font-semibold text-sm">Due Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeBorrowings.map((item, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="p-3">{item.bookTitle || 'Unknown Book'}</td>
+                          <td className="p-3">{item.bookNo || 'N/A'}</td>
+                          <td className="p-3">{safeFormatDate(item.dueDate)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
                 <p className="mt-4 text-amber-600 font-medium">
                   Please return all borrowed books before requesting a No Due Certificate.
                 </p>
@@ -470,6 +571,13 @@ const NoDuePage = () => {
                     <p className="text-sm text-gray-600">Email</p>
                     <p className="font-medium">{student.email}</p>
                   </div>
+                </div>
+
+                <div className="my-6 p-4 bg-green-50 border border-green-200 rounded-md">
+                  <h3 className="text-lg font-semibold text-green-600 mb-2">No Outstanding Dues</h3>
+                  <p className="text-green-700">
+                    This student has no active borrowings or outstanding dues. They are eligible for a No Due Certificate.
+                  </p>
                 </div>
 
                 <div className="mt-6 flex gap-3">

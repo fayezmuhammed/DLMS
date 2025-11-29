@@ -59,5 +59,15 @@ export const reservationService = {
     } catch (error: any) {
       throw error;
     }
+  },
+
+  // Admin: Issue book from reservation
+  issueBookFromReservation: async (reservationId: string) => {
+    try {
+      const response = await axiosAuth.post(`/api/reservations/${reservationId}/issue`);
+      return response.data;
+    } catch (error: any) {
+      throw error;
+    }
   }
 }; 

@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/table';
 import { Reservation, reservationService } from '@/services/reservationService';
 import { Book } from '@/services/bookService';
-import { AlertCircle, BookOpen, Clock, RefreshCw, X } from 'lucide-react';
+import { transactionService } from '@/services/transactionService';
+import { AlertCircle, BookOpen, Check, Clock, RefreshCw, X } from 'lucide-react';
 import AdminPageTitle from '@/components/admin/AdminPageTitle';
 
 interface ExtendedReservation extends Reservation {
@@ -29,6 +30,7 @@ const ManageReservationsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [issuingId, setIssuingId] = useState<string | null>(null);
   const [checkingExpired, setCheckingExpired] = useState(false);
   const [expiredCount, setExpiredCount] = useState(0);
 
@@ -144,6 +146,44 @@ const ManageReservationsPage: React.FC = () => {
       });
     } finally {
       setCheckingExpired(false);
+    }
+  };
+
+  // Handle issuing a book for a reservation
+  const handleIssueBook = async (reservation: ExtendedReservation) => {
+    try {
+      setIssuingId(reservation._id);
+      
+      const response = await reservationService.issueBookFromReservation(reservation._id);
+      
+      if (response.success) {
+        // Update the local state to reflect the status change
+        setReservations(prevReservations => 
+          prevReservations.map(r => 
+            r._id === reservation._id ? { ...r, status: 'completed' } : r
+          )
+        );
+
+        toast({
+          title: 'Success',
+          description: 'Book issued successfully',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: response.message || 'Failed to issue book',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      console.error('Error issuing book:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to issue book. Please try again later.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIssuingId(null);
     }
   };
 
@@ -264,21 +304,56 @@ const ManageReservationsPage: React.FC = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       {reservation.status === 'active' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={cancellingId === reservation._id}
-                          onClick={() => handleCancelReservation(reservation._id)}
-                        >
-                          {cancellingId === reservation._id ? (
-                            'Cancelling...'
-                          ) : (
-                            <>
-                              <X className="mr-1 h-4 w-4" />
-                              Cancel
-                            </>
-                          )}
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            disabled={issuingId === reservation._id}
+                            onClick={() => handleIssueBook(reservation)}
+                          >
+                            {issuingId === reservation._id ? (
+                              'Issuing...'
+                            ) : (
+                              <>
+                                <Check className="mr-1 h-4 w-4" />
+                                Issue
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={cancellingId === reservation._id || issuingId === reservation._id}
+                            onClick={() => handleCancelReservation(reservation._id)}
+                          >
+                            {cancellingId === reservation._id ? (
+                              'Cancelling...'
+                            ) : (
+                              <>
+                                <X className="mr-1 h-4 w-4" />
+                                Cancel
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                      {reservation.status === 'expired' && (
+                        <span className="text-red-600 flex items-center justify-end">
+                          <Clock className="mr-1 h-4 w-4" />
+                          Expired
+                        </span>
+                      )}
+                      {reservation.status === 'completed' && (
+                        <span className="text-green-600 flex items-center justify-end">
+                          <Check className="mr-1 h-4 w-4" />
+                          Issued
+                        </span>
+                      )}
+                      {reservation.status === 'cancelled' && (
+                        <span className="text-gray-600 flex items-center justify-end">
+                          <X className="mr-1 h-4 w-4" />
+                          Cancelled
+                        </span>
                       )}
                     </TableCell>
                   </TableRow>

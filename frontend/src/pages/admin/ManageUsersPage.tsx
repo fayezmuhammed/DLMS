@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/use-toast';
 import api from '@/utils/api';
 import { useNavigate } from 'react-router-dom';
+import AdminTable from '@/components/admin/AdminTable';
 
 interface User {
   _id: string;
@@ -407,86 +408,71 @@ const ManageUsersPage: React.FC = () => {
         <Button onClick={fetchUsers}>Refresh</Button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  <th className="py-3 px-4 text-left">Name</th>
-                  <th className="py-3 px-4 text-left">Email</th>
-                  <th className="py-3 px-4 text-left">Role</th>
-                  <th className="py-3 px-4 text-left">Admission No.</th>
-                  <th className="py-3 px-4 text-left">Batch</th>
-                  <th className="py-3 px-4 text-left">Joined On</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <tr 
-                      key={user._id} 
-                      className="border-b hover:bg-muted/50 cursor-pointer"
-                      onClick={() => {
-                        navigate(`/admin/users/${user._id}`);
-                      }}
-                    >
-                      <td className="py-3 px-4">{user.name}</td>
-                      <td className="py-3 px-4">{user.email}</td>
-                      <td className="py-3 px-4">{user.role}</td>
-                      <td className="py-3 px-4">
-                        {user.role.toLowerCase() === 'student' ? 
-                          (user.admissionNumber !== null && user.admissionNumber !== undefined ? user.admissionNumber : '(Not set)') : 
-                          '-'}
-                      </td>
-                      <td className="py-3 px-4">
-                        {user.role.toLowerCase() === 'student' ? 
-                          (user.batch !== null && user.batch !== undefined ? user.batch : '(Not set)') : 
-                          '-'}
-                      </td>
-                      <td className="py-3 px-4">{user.createdAt ? formatDate(user.createdAt) : '-'}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex justify-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent row click event
-                              setEditingUser(user);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Prevent row click event
-                              if (window.confirm(`Are you sure you want to delete ${user.name}?`)) {
-                                handleDeleteUser(user._id);
-                              }
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="py-6 text-center text-muted-foreground">
-                      No users found. Try adjusting your search.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <AdminTable
+        columns={[
+          { key: 'name', title: 'Name' },
+          { key: 'email', title: 'Email' },
+          { key: 'role', title: 'Role' },
+          { key: 'admissionNumber', title: 'Admission No.' },
+          { key: 'batch', title: 'Batch' },
+          { key: 'joinedOn', title: 'Joined On' },
+          { key: 'actions', title: 'Actions', className: 'text-center' }
+        ]}
+        data={filteredUsers}
+        onRowClick={(user) => navigate(`/admin/users/${user._id}`)}
+        renderCell={(user, column, index) => {
+          switch (column) {
+            case 'name':
+              return user.name;
+            case 'email':
+              return user.email;
+            case 'role':
+              return user.role;
+            case 'admissionNumber':
+              return user.role.toLowerCase() === 'student' ? 
+                (user.admissionNumber !== null && user.admissionNumber !== undefined ? user.admissionNumber : '(Not set)') : 
+                '-';
+            case 'batch':
+              return user.role.toLowerCase() === 'student' ? 
+                (user.batch !== null && user.batch !== undefined ? user.batch : '(Not set)') : 
+                '-';
+            case 'joinedOn':
+              return user.createdAt ? formatDate(user.createdAt) : '-';
+            case 'actions':
+              return (
+                <div className="flex justify-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row click event
+                      setEditingUser(user);
+                      setIsEditDialogOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent row click event
+                      if (window.confirm(`Are you sure you want to delete ${user.name}?`)) {
+                        handleDeleteUser(user._id);
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              );
+            default:
+              return null;
+          }
+        }}
+        emptyMessage="No users found. Try adjusting your search."
+        isLoading={isLoading}
+      />
 
       {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={(open) => {

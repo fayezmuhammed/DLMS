@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -11,11 +11,21 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '@/components/ui/select';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
 import { Transaction, transactionService } from '@/services/transactionService';
 import { bookService } from '@/services/bookService';
 import { toast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import settingsService, { BorrowingRules } from '@/services/settingsService';
+import AdminPageTitle from '@/components/admin/AdminPageTitle';
+import { AlertCircle, BookCopy, Check, Clock, IndianRupee, RefreshCw } from 'lucide-react';
 
 const TransactionsPageAdmin: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
@@ -25,6 +35,7 @@ const TransactionsPageAdmin: React.FC = () => {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
+  const [returningId, setReturningId] = useState<string | null>(null);
   const [borrowingRules, setBorrowingRules] = useState<BorrowingRules>({
     maxBooksStudent: 3,
     maxBooksTeacher: 5,
@@ -128,6 +139,7 @@ const TransactionsPageAdmin: React.FC = () => {
     }
     
     try {
+      setReturningId(transaction._id);
       // Use transaction ID instead of book ID, and set isTransactionId to true
       const response = await transactionService.returnBook(transaction._id, true);
       
@@ -152,6 +164,8 @@ const TransactionsPageAdmin: React.FC = () => {
         description: "Failed to return the book. Please try again later.",
         variant: "destructive",
       });
+    } finally {
+      setReturningId(null);
     }
   };
 
@@ -212,54 +226,49 @@ const TransactionsPageAdmin: React.FC = () => {
 
   // Get user name from transaction
   const getUserName = (transaction: any) => {
-    let userName = '';
-    
     if (transaction.user && typeof transaction.user === 'object') {
-      userName = transaction.user.name || 'Unknown User';
-      const userEmail = transaction.user.email || 'No email';
-      
-      // Return formatted name with email
-      return `${userName} (${userEmail})`;
-    } else {
-      // Handle if user is just an ID or null
-      userName = transaction.user ? 'User ID: ' + transaction.user : 'Unknown User';
-      return userName;
+      return transaction.user.name || 'Unknown User';
     }
+    
+    return transaction.user ? 'User ID: ' + transaction.user : 'Unknown User';
   };
 
-  if (loading) {
-    return <div className="text-center py-12">Loading transactions...</div>;
-  }
+  // Get user email from transaction
+  const getUserEmail = (transaction: any) => {
+    if (transaction.user && typeof transaction.user === 'object') {
+      return transaction.user.email || 'No email';
+    }
+    
+    return '';
+  };
 
-  if (error) {
-    return (
-      <div className="text-center py-12">
-        <h1 className="text-2xl font-bold mb-4">Error</h1>
-        <p className="text-muted-foreground mb-6">{error}</p>
-        <Button onClick={() => fetchTransactions()}>Try Again</Button>
-      </div>
-    );
+  if (loading && !filteredTransactions.length) {
+    return <div className="text-center py-12">Loading transactions...</div>;
   }
 
   return (
     <div className="space-y-6">
+      <AdminPageTitle 
+        title="Manage Transactions" 
+        description="View and manage borrowing records for all users"
+      />
+
       <div className="flex justify-between items-center">
-        <div>
-        <h1 className="text-2xl font-bold">Manage Transactions</h1>
-          <p className="text-muted-foreground">
-            View and manage borrowing records for all users
-          </p>
+        <div className="flex items-center gap-2">
+          <Button onClick={fetchTransactions} variant="outline" size="sm">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
         </div>
-        
         <Button onClick={() => navigate('/admin/transactions/issue')}>Issue New Book</Button>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="flex-1">
-        <Input
+          <Input
             placeholder="Search by book title or user..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-md"
           />
         </div>
@@ -276,9 +285,6 @@ const TransactionsPageAdmin: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-        <div>
-          <Button onClick={() => fetchTransactions()}>Refresh</Button>
-        </div>
       </div>
 
       <Tabs defaultValue="all" onValueChange={setActiveTab} className="space-y-4">
@@ -289,77 +295,118 @@ const TransactionsPageAdmin: React.FC = () => {
         </TabsList>
 
         <TabsContent value={activeTab} className="space-y-4">
-          {filteredTransactions.length === 0 ? (
-            <div className="text-center py-12 border rounded-lg bg-background">
-              <p className="text-muted-foreground">No transactions found</p>
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-start">
+              <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Error loading transactions</p>
+                <p className="text-sm">{error}</p>
+              </div>
             </div>
+          )}
+
+          {!loading && filteredTransactions.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <BookCopy className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                <h3 className="text-lg font-medium mb-2">No Transactions Found</h3>
+                <p className="text-muted-foreground">
+                  There are currently no borrowing records matching your filters.
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            filteredTransactions.map((transaction) => {
-              const book = getBookDetails(transaction);
-              const isOverdue = transaction.status === 'overdue';
-              const isActive = transaction.status === 'borrowed';
-              
-              return (
-                <Card key={transaction._id} className="overflow-hidden">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col md:flex-row gap-6">
-                      <div className="space-y-4 flex-grow">
-                        <div>
-                          <h3 className="text-xl font-semibold">{book?.title || 'Unknown Book'}</h3>
-                          <p className="text-muted-foreground">by {book?.author || 'Unknown Author'}</p>
-                          {transaction.user && typeof transaction.user === 'object' ? (
-                            <p className="text-sm mt-1">
-                              User: {getUserName(transaction)}
-                            </p>
-                          ) : (
-                            <p className="text-sm mt-1">User ID: {getUserName(transaction)}</p>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Issue Date</p>
-                            <p className="font-medium">{formatDate(transaction.issueDate)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Due Date</p>
-                            <p className="font-medium">{formatDate(transaction.dueDate)}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Return Date</p>
-                            <p className="font-medium">
-                              {transaction.returnDate ? formatDate(transaction.returnDate) : 'Not returned'}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-muted-foreground">Status</p>
+            <Card>
+              <CardHeader>
+                <CardTitle>Borrowing Records</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>User</TableHead>
+                      <TableHead>Book</TableHead>
+                      <TableHead>Issue Date</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Return Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Fine</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTransactions.map((transaction) => {
+                      const book = getBookDetails(transaction);
+                      const isOverdue = transaction.status === 'overdue';
+                      const isActive = transaction.status === 'borrowed';
+                      
+                      return (
+                        <TableRow key={transaction._id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{getUserName(transaction)}</div>
+                              <div className="text-xs text-muted-foreground">{getUserEmail(transaction)}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{book.title}</div>
+                              <div className="text-xs text-muted-foreground">{book.author}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatDate(transaction.issueDate)}</TableCell>
+                          <TableCell>{formatDate(transaction.dueDate)}</TableCell>
+                          <TableCell>
+                            {transaction.returnDate ? formatDate(transaction.returnDate) : 'Not returned'}
+                          </TableCell>
+                          <TableCell>
                             <Badge className={getStatusColor(transaction.status)}>
                               {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
                             </Badge>
-                          </div>
-                        </div>
-                        {isOverdue && (
-                          <div className="text-xs text-red-600 mt-1">
-                            {calculateDaysOverdue(transaction.dueDate)} days overdue
-                            <br />
-                            Fine: ₹{calculateFine(transaction.dueDate)}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center">
-                        {(isActive || isOverdue) && (
-                          <Button 
-                            variant="outline"
-                            onClick={() => handleManualReturn(transaction)}
-                          >
-                            Mark as Returned
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
+                          </TableCell>
+                          <TableCell>
+                            {isOverdue ? (
+                              <div className="flex items-center text-red-600">
+                                <IndianRupee className="h-3 w-3 mr-1" />
+                                <span>{calculateFine(transaction.dueDate)}</span>
+                                <span className="ml-1 text-xs">({calculateDaysOverdue(transaction.dueDate)} days)</span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {(isActive || isOverdue) && (
+                              <Button 
+                                variant="outline"
+                                size="sm"
+                                disabled={returningId === transaction._id}
+                                onClick={() => handleManualReturn(transaction)}
+                              >
+                                {returningId === transaction._id ? (
+                                  'Processing...'
+                                ) : (
+                                  <>
+                                    <Check className="mr-1 h-4 w-4" />
+                                    Return
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {transaction.status === 'returned' && (
+                              <span className="text-green-600 flex items-center justify-end">
+                                <Check className="mr-1 h-4 w-4" />
+                                Returned
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>

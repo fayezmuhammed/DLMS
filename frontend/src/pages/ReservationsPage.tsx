@@ -14,6 +14,7 @@ import {
 import { Reservation, reservationService } from '@/services/reservationService';
 import { Book } from '@/services/bookService';
 import { AlertCircle, BookOpen, Check, Clock } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface ReservationWithBook extends Reservation {
   book: Book;
@@ -169,6 +170,11 @@ const ReservationsPage: React.FC = () => {
                           <div className="text-xs text-muted-foreground">
                             {(reservation.book as Book).author}
                           </div>
+                          {reservation.status === 'active' && (
+                            <Badge className="mt-1 bg-green-100 text-green-800 hover:bg-green-200">
+                              <Check className="mr-1 h-3 w-3" /> Ready for pickup
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </TableCell>
@@ -224,6 +230,16 @@ const ReservationsPage: React.FC = () => {
             <span className={`font-bold ${reservations.length >= 3 ? 'text-red-600' : 'text-green-600'}`}>
               {reservations.length}/3
             </span>
+          </div>
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded flex items-center text-green-800">
+            <Check className="h-5 w-5 mr-2" />
+            <div>
+              <h3 className="font-semibold">Ready for Pickup</h3>
+              <p className="text-sm">
+                Books marked as "Ready for pickup" can be collected from the library's front desk. 
+                Please bring your ID card when collecting books.
+              </p>
+            </div>
           </div>
         </div>
       </div>

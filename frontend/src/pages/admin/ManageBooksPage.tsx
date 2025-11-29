@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, useEffect } from 'react';
+import React, { useState, ChangeEvent, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Book, bookService } from '@/services/bookService';
 import { Category } from '@/services/bookService';
 import { Plus } from 'lucide-react';
+import AdminTable from '@/components/admin/AdminTable';
 
 // Helper function to safely render any value
 const safeRender = (value: any): string => {
@@ -27,10 +28,16 @@ export default function ManageBooksPage() {
   const { toast } = useToast();
   const [books, setBooks] = useState<Book[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [newBook, setNewBook] = useState<Omit<Book, '_id' | 'addedOn'>>({
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [coverImagePreview, setCoverImagePreview] = useState('');
+  const [editCoverImageFile, setEditCoverImageFile] = useState<File | null>(null);
+  const [editCoverImagePreview, setEditCoverImagePreview] = useState('');
+  const [newBook, setNewBook] = useState({
     bookNo: '',
     title: '',
     author: '',
@@ -40,36 +47,36 @@ export default function ManageBooksPage() {
     copies: 1,
     coverImage: ''
   });
-  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
-  const [coverImagePreview, setCoverImagePreview] = useState<string>('');
   
-  // Add edit state variables
-  const [editingBook, setEditingBook] = useState<Book | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editCoverImageFile, setEditCoverImageFile] = useState<File | null>(null);
-  const [editCoverImagePreview, setEditCoverImagePreview] = useState<string>('');
-
   const navigate = useNavigate();
 
-  // Fetch books and categories on component mount
+  // Compute the filtered books based on search term
+  const filteredBooks = useMemo(() => {
+    return books.filter(book => 
+      book.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (book.ISBN && book.ISBN.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (book.isbn && book.isbn.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [books, searchTerm]);
+
   useEffect(() => {
     fetchBooks();
     fetchCategories();
   }, []);
 
+  // Fetch all books
   const fetchBooks = async () => {
     try {
-      setLoading(true);
+      setIsLoading(true);
       const response = await bookService.getBooks();
-      setBooks(response.data || []);
+      if (response.success) {
+        setBooks(response.data);
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to fetch books",
-        variant: "destructive",
-      });
+      console.error('Error fetching books:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -85,13 +92,6 @@ export default function ManageBooksPage() {
       });
     }
   };
-
-  // Filter books based on search term
-  const filteredBooks = books.filter((book: Book) =>
-    (book.title?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (book.author?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
-    (book.ISBN || book.isbn || '').includes(searchTerm)
-  );
 
   // Handle image upload
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -202,7 +202,7 @@ export default function ManageBooksPage() {
       }
 
       try {
-        setLoading(true);
+        setIsLoading(true);
         
         // Create form data for the edit
         const formData = new FormData();
@@ -257,7 +257,7 @@ export default function ManageBooksPage() {
           variant: "destructive",
         });
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     }
   };
@@ -436,85 +436,75 @@ export default function ManageBooksPage() {
         </DialogContent>
       </Dialog>
 
-      <Card className="border rounded-lg shadow-sm">
-        <CardContent className="p-6">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-muted/50 border-b">
-                <tr>
-                  <th className="py-3 px-4 text-left">Book No.</th>
-                  <th className="py-3 px-4 text-left">Title</th>
-                  <th className="py-3 px-4 text-left">Author</th>
-                  <th className="py-3 px-4 text-left">ISBN</th>
-                  <th className="py-3 px-4 text-left">Category</th>
-                  <th className="py-3 px-4 text-left">Status</th>
-                  <th className="py-3 px-4 text-center">Copies</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredBooks.length > 0 ? (
-                  filteredBooks.map((book: Book) => (
-                    <tr 
-                      key={book._id} 
-                      className="border-b hover:bg-muted/50 cursor-pointer"
-                      onClick={() => navigate(`/admin/books/edit/${book._id}`)}
-                    >
-                      <td className="py-3 px-4">{book.bookNo}</td>
-                      <td className="py-3 px-4">{book.title}</td>
-                      <td className="py-3 px-4">{book.author}</td>
-                      <td className="py-3 px-4">{book.ISBN || book.isbn}</td>
-                      <td className="py-3 px-4">
-                        {safeRender(book.category)}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          book.status === 'Available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {book.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">{book.copies}</td>
-                      <td className="py-3 px-4">
-                        <div className="flex justify-center gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/admin/books/edit/${book._id}`);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button 
-                            variant="destructive" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm(`Are you sure you want to delete "${book.title}"?`)) {
-                                handleDeleteBook(book._id);
-                              }
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="py-6 text-center text-muted-foreground">
-                      No books found. Try adjusting your search.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+      <AdminTable
+        columns={[
+          { key: 'bookNo', title: 'Book No.' },
+          { key: 'title', title: 'Title' },
+          { key: 'author', title: 'Author' },
+          { key: 'ISBN', title: 'ISBN' },
+          { key: 'category', title: 'Category' },
+          { key: 'status', title: 'Status' },
+          { key: 'copies', title: 'Copies', className: 'text-center' },
+          { key: 'actions', title: 'Actions', className: 'text-center' }
+        ]}
+        data={filteredBooks}
+        onRowClick={(book) => navigate(`/admin/books/edit/${book._id}`)}
+        renderCell={(book, column, index) => {
+          switch (column) {
+            case 'bookNo':
+              return book.bookNo;
+            case 'title':
+              return book.title;
+            case 'author':
+              return book.author;
+            case 'ISBN':
+              return book.ISBN || book.isbn;
+            case 'category':
+              return safeRender(book.category);
+            case 'status':
+              return (
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  book.status === 'Available' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {book.status}
+                </span>
+              );
+            case 'copies':
+              return book.copies;
+            case 'actions':
+              return (
+                <div className="flex justify-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/admin/books/edit/${book._id}`);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (window.confirm(`Are you sure you want to delete "${book.title}"?`)) {
+                        handleDeleteBook(book._id);
+                      }
+                    }}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              );
+            default:
+              return null;
+          }
+        }}
+        emptyMessage="No books found. Try adjusting your search."
+        isLoading={isLoading}
+      />
     </div>
   );
 }
