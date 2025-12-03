@@ -37,7 +37,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     // Check if user is logged in
     const storedUser = localStorage.getItem('user');
     const isAuthenticated = localStorage.getItem('isAuthenticated');
-    
+
     if (storedUser && isAuthenticated) {
       try {
         const parsedUser = JSON.parse(storedUser);
@@ -86,7 +86,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <motion.header 
+      <motion.header
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 100, damping: 20 }}
@@ -95,7 +95,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between relative">
             {/* Logo */}
-            <motion.div 
+            <motion.div
               whileHover={{ scale: 1.05 }}
               transition={{ type: 'spring', stiffness: 400 }}
             >
@@ -110,29 +110,28 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
             {/* Desktop Navigation */}
             <nav className="hidden md:flex items-center space-x-1">
               {navItems.filter(item => item.isVisible).map((item) => (
-                <motion.div 
+                <motion.div
                   key={item.path}
                   whileHover={{ y: -2 }}
                   whileTap={{ y: 0 }}
                 >
-                  <Link 
-                    to={item.path} 
-                    className={`relative px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-800 transition-colors ${
-                      (location.pathname === item.path || 
-                      (item.path !== '/' && location.pathname.startsWith(item.path))) 
-                      ? 'text-white font-semibold' 
-                      : 'text-indigo-100'
-                    }`}
+                  <Link
+                    to={item.path}
+                    className={`relative px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-800 transition-colors ${(location.pathname === item.path ||
+                        (item.path !== '/' && location.pathname.startsWith(item.path)))
+                        ? 'text-white font-semibold'
+                        : 'text-indigo-100'
+                      }`}
                   >
                     {item.label}
-                    {(location.pathname === item.path || 
+                    {(location.pathname === item.path ||
                       (item.path !== '/' && location.pathname.startsWith(item.path))) && (
-                      <motion.div 
-                        layoutId="navigation-underline"
-                        className="absolute -bottom-1 left-0 right-0 h-0.5 bg-indigo-300 mx-3"
-                        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                      />
-                    )}
+                        <motion.div
+                          layoutId="navigation-underline"
+                          className="absolute -bottom-1 left-0 right-0 h-0.5 bg-indigo-300 mx-3"
+                          transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                        />
+                      )}
                   </Link>
                 </motion.div>
               ))}
@@ -145,17 +144,13 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
               ) : isLoggedIn && user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <motion.button 
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="flex items-center gap-2 bg-indigo-800 hover:bg-indigo-700 px-3 py-2 rounded-full transition-colors"
-                    >
+                    <div className="flex items-center gap-2 bg-indigo-800 hover:bg-indigo-700 px-3 py-2 rounded-full transition-colors cursor-pointer">
                       <Avatar className="h-8 w-8 border-2 border-indigo-300">
                         <AvatarImage src={user.imagePath} />
                         <AvatarFallback className="bg-indigo-600 text-white">{getInitials(user.name)}</AvatarFallback>
                       </Avatar>
                       <span className="text-sm font-medium hidden sm:inline-block">{user.name.split(' ')[0]}</span>
-                    </motion.button>
+                    </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel>
@@ -221,9 +216,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
 
               {/* Mobile menu button */}
               <div className="md:hidden ml-2">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                   className="text-white hover:bg-indigo-800"
                 >
@@ -245,15 +240,14 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
               >
                 <nav className="flex flex-col py-2">
                   {navItems.filter(item => item.isVisible).map((item) => (
-                    <Link 
+                    <Link
                       key={item.path}
-                      to={item.path} 
-                      className={`px-4 py-3 hover:bg-indigo-700 transition-colors ${
-                        (location.pathname === item.path || 
-                        (item.path !== '/' && location.pathname.startsWith(item.path))) 
-                        ? 'text-white font-semibold bg-indigo-700' 
-                        : 'text-indigo-100'
-                      }`}
+                      to={item.path}
+                      className={`px-4 py-3 hover:bg-indigo-700 transition-colors ${(location.pathname === item.path ||
+                          (item.path !== '/' && location.pathname.startsWith(item.path)))
+                          ? 'text-white font-semibold bg-indigo-700'
+                          : 'text-indigo-100'
+                        }`}
                     >
                       {item.label}
                     </Link>
@@ -264,11 +258,11 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
           </AnimatePresence>
         </div>
       </motion.header>
-      
+
       <main className="flex-grow container mx-auto px-4 py-8">
         <Outlet />
       </main>
-      
+
       <footer className="bg-gradient-to-r from-indigo-900 to-indigo-800 text-white mt-auto">
         <div className="container mx-auto px-4 py-4">
           <div className="border-t border-indigo-800/50 flex justify-center items-center text-indigo-200 pt-4">

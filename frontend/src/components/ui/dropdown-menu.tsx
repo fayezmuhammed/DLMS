@@ -33,8 +33,15 @@ export const DropdownMenuTrigger: React.FC<{
   };
 
   if (asChild && React.isValidElement(children)) {
-    // Do not pass aria-haspopup via cloneElement config, let user handle it
-    return children;
+    return React.cloneElement(children as React.ReactElement<any>, {
+      onClick: (e: React.MouseEvent) => {
+        const existingOnClick = (children.props as any).onClick;
+        if (existingOnClick) existingOnClick(e);
+        handleClick();
+      },
+      "aria-expanded": isOpen,
+      "aria-haspopup": true
+    });
   }
 
   return (
@@ -101,22 +108,26 @@ export const DropdownMenuItem: React.FC<{
 
   if (asChild && React.isValidElement(children)) {
     const childType = (children as React.ReactElement).type;
-    if (typeof childType === 'string') {
-      // Only add className if it already exists on the child
-      const existingClassName = (children.props as any).className;
-      const propsToAdd: Record<string, any> = {};
-      if (typeof existingClassName === 'string') {
-        propsToAdd.className = `block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 ${existingClassName}`.trim();
+    const existingClassName = (children.props as any).className || '';
+
+    const propsToAdd: Record<string, any> = {
+      onClick: (e: React.MouseEvent) => {
+        const existingOnClick = (children.props as any).onClick;
+        if (existingOnClick) existingOnClick(e);
+        handleClick();
       }
-      // Only add role if it already exists on the child
-      if ('role' in children.props) {
-        propsToAdd.role = 'menuitem';
-      }
-      return React.cloneElement(children, propsToAdd);
-    } else {
-      // Custom component: return as-is
-      return children;
+    };
+
+    if (typeof childType === 'string' || (children.props as any).className !== undefined) {
+      propsToAdd.className = `block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 ${existingClassName}`.trim();
     }
+
+    // Only add role if it already exists on the child or if it's a standard element
+    if ('role' in children.props || typeof childType === 'string') {
+      propsToAdd.role = 'menuitem';
+    }
+
+    return React.cloneElement(children as React.ReactElement<any>, propsToAdd);
   }
 
   return (

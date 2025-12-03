@@ -9,11 +9,11 @@ const storage = multer.memoryStorage();
 
 const upload = multer({
     storage: storage,
-    fileFilter: function(req, file, cb) {
+    fileFilter: function (req, file, cb) {
         const filetypes = /jpeg|jpg|png|gif/;
         const mimetype = filetypes.test(file.mimetype);
         const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-        
+
         if (mimetype && extname) {
             return cb(null, true);
         }
@@ -27,13 +27,35 @@ const upload = multer({
 // @desc    Get all books
 // @route   GET /api/books
 // @access  Public
+const Transaction = require('../models/Transaction');
+
+// @desc    Get all books
+// @route   GET /api/books
+// @access  Public
 exports.getBooks = async (req, res) => {
     try {
         const books = await Book.find().populate('category', 'name');
+
+        // Calculate available copies for each book
+        const booksWithAvailability = await Promise.all(books.map(async (book) => {
+            // Get active transactions (borrowed or overdue)
+            const activeTransactions = await Transaction.countDocuments({
+                book: book._id,
+                status: { $in: ['borrowed', 'overdue'] }
+            });
+
+            const availableCopies = Math.max(0, book.copies - activeTransactions);
+
+            return {
+                ...book.toObject(),
+                availableCopies
+            };
+        }));
+
         res.json({
             success: true,
-            count: books.length,
-            data: books
+            count: booksWithAvailability.length,
+            data: booksWithAvailability
         });
     } catch (error) {
         res.status(400).json({
@@ -49,17 +71,30 @@ exports.getBooks = async (req, res) => {
 exports.getBookById = async (req, res) => {
     try {
         const book = await Book.findById(req.params.id).populate('category', 'name');
-        
+
         if (!book) {
             return res.status(404).json({
                 success: false,
                 message: 'Book not found'
             });
         }
-        
+
+        // Get active transactions
+        const activeTransactions = await Transaction.countDocuments({
+            book: book._id,
+            status: { $in: ['borrowed', 'overdue'] }
+        });
+
+        const availableCopies = Math.max(0, book.copies - activeTransactions);
+
+        const bookWithAvailability = {
+            ...book.toObject(),
+            availableCopies
+        };
+
         res.json({
             success: true,
-            book
+            book: bookWithAvailability
         });
     } catch (error) {
         console.error('Error fetching book by ID:', error);
@@ -74,7 +109,7 @@ exports.getBookById = async (req, res) => {
 // @route   POST /api/books/add
 // @access  Private/Admin
 exports.addBook = async (req, res) => {
-    upload(req, res, async function(err) {
+    upload(req, res, async function (err) {
         if (err) {
             return res.status(400).json({
                 success: false,
@@ -96,7 +131,7 @@ exports.addBook = async (req, res) => {
 
             const requiredFields = ['title', 'author', 'bookNo'];
             const missingFields = requiredFields.filter(field => !req.body[field]);
-            
+
             if (missingFields.length > 0) {
                 return res.status(400).json({
                     success: false,
@@ -114,7 +149,7 @@ exports.addBook = async (req, res) => {
 
             // Check if ISBN or bookNo already exists
             const existingBookQuery = { bookNo: req.body.bookNo };
-            
+
             // Only check ISBN uniqueness if provided
             if (req.body.isbn && req.body.isbn.trim() !== '') {
                 existingBookQuery.$or = [
@@ -122,7 +157,7 @@ exports.addBook = async (req, res) => {
                     { isbn: req.body.isbn }
                 ];
             }
-            
+
             const existingBook = await Book.findOne(existingBookQuery);
 
             if (existingBook) {
@@ -142,7 +177,7 @@ exports.addBook = async (req, res) => {
 
             let imageUrl = '';
             let imagePublicId = '';
-            
+
             // Upload image to Cloudinary if provided
             if (req.file) {
                 const result = await cloudinaryService.uploadBookCover(
@@ -171,10 +206,10 @@ exports.addBook = async (req, res) => {
             }
 
             const book = await Book.create(bookData);
-            
+
             // Populate the category field in the response
             const populatedBook = await Book.findById(book._id).populate('category', 'name');
-            
+
             res.status(201).json({
                 success: true,
                 data: populatedBook
@@ -193,7 +228,7 @@ exports.addBook = async (req, res) => {
 // @route   PUT /api/books/update/:id
 // @access  Private/Admin
 exports.updateBook = async (req, res) => {
-    upload(req, res, async function(err) {
+    upload(req, res, async function (err) {
         if (err) {
             return res.status(400).json({
                 success: false,
@@ -204,17 +239,17 @@ exports.updateBook = async (req, res) => {
         try {
             // Find the existing book
             const existingBook = await Book.findById(req.params.id);
-            
+
             if (!existingBook) {
                 return res.status(404).json({
                     success: false,
                     message: 'Book not found'
                 });
             }
-            
+
             // Update image if a new one is provided
             let bookData = { ...req.body };
-            
+
             if (req.file) {
                 const result = await cloudinaryService.uploadBookCover(
                     req.file.buffer,
@@ -222,7 +257,7 @@ exports.updateBook = async (req, res) => {
                 );
                 bookData.image = result.secure_url;
                 bookData.imagePublicId = result.public_id;
-                
+
                 // Delete previous image from Cloudinary if it exists
                 if (existingBook.imagePublicId) {
                     try {
@@ -233,7 +268,7 @@ exports.updateBook = async (req, res) => {
                     }
                 }
             }
-            
+
             // Update book
             const book = await Book.findByIdAndUpdate(req.params.id, bookData, {
                 new: true,
@@ -297,7 +332,7 @@ exports.deleteBook = async (req, res) => {
 exports.bulkImportBooks = async (req, res) => {
     try {
         // Use middleware to handle file upload
-        excelUpload.single('excelFile')(req, res, async function(err) {
+        excelUpload.single('excelFile')(req, res, async function (err) {
             if (err) {
                 return res.status(400).json({
                     success: false,
@@ -315,7 +350,7 @@ exports.bulkImportBooks = async (req, res) => {
             try {
                 // Get default category
                 const defaultCategoryId = req.body.category || null;
-                
+
                 if (!defaultCategoryId) {
                     return res.status(400).json({
                         success: false,
@@ -325,7 +360,7 @@ exports.bulkImportBooks = async (req, res) => {
 
                 // Process the Excel file
                 const results = await processExcelImport(req.file.path, defaultCategoryId);
-                
+
                 return res.status(200).json({
                     success: true,
                     message: 'Import process completed',

@@ -6,7 +6,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Book, Category, bookService } from '@/services/bookService';
 import { ArrowRight } from 'lucide-react';
-import { transactionService } from '@/services/transactionService';
 
 // Interface for Book type is now imported from bookService
 // Interface for Category type is now imported from bookService
@@ -29,57 +28,20 @@ const BooksPage: React.FC = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Fetch books
         const booksResponse = await bookService.getBooks();
-        
+
         if (booksResponse.data) {
-          // Fetch transaction data for each book to calculate available copies
-          const booksWithAvailability = await Promise.all(
-            booksResponse.data.map(async (book: Book) => {
-              try {
-                // Get active transactions for this book
-                const transactionsResponse = await transactionService.getBookTransactions(book._id);
-                
-                if (transactionsResponse.success) {
-                  // Count active transactions (borrowed or overdue)
-                  const activeTransactions = transactionsResponse.data.filter(
-                    (tx: { status: string }) => tx.status === 'borrowed' || tx.status === 'overdue'
-                  ).length;
-                  
-                  // Calculate available copies
-                  const availableCopies = Math.max(0, book.copies - activeTransactions);
-                  
-                  return {
-                    ...book,
-                    availableCopies
-                  };
-                }
-                
-                // Fallback if transaction data can't be fetched
-                return {
-                  ...book,
-                  availableCopies: book.copies
-                };
-              } catch (err) {
-                console.error(`Error fetching transactions for book ${book._id}:`, err);
-                return {
-                  ...book,
-                  availableCopies: book.copies
-                };
-              }
-            })
-          );
-          
-          setBooks(booksWithAvailability);
+          setBooks(booksResponse.data);
         } else {
           setBooks([]);
         }
-        
+
         // Fetch categories
         const categoriesResponse = await bookService.getCategories();
         setCategories(categoriesResponse.data || []);
-        
+
         setLoading(false);
       } catch (err) {
         console.error('Error fetching data:', err);
@@ -102,22 +64,22 @@ const BooksPage: React.FC = () => {
 
   // Filter books based on search term, category, and availability
   const filteredBooks = books.filter(book => {
-    const matchesSearch = 
-      book.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    const matchesSearch =
+      book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       book.author.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (book.description && book.description.toLowerCase().includes(searchTerm.toLowerCase()));
-    
+
     // Handle category being either a string, object, or null
     let bookCategoryId = null;
     if (book.category) {
       bookCategoryId = typeof book.category === 'object' ? book.category._id : book.category;
     }
     const matchesCategory = selectedCategory === 'all' || bookCategoryId === selectedCategory;
-    
-    const matchesAvailability = availabilityFilter === 'all' || 
+
+    const matchesAvailability = availabilityFilter === 'all' ||
       (availabilityFilter === 'available' && book.status === 'Available') ||
       (availabilityFilter === 'borrowed' && book.status !== 'Available');
-    
+
     return matchesSearch && matchesCategory && matchesAvailability;
   });
 
@@ -200,19 +162,18 @@ const BooksPage: React.FC = () => {
           {filteredBooks.map(book => (
             <Card key={book._id} className="overflow-hidden flex flex-col h-full">
               <div className="aspect-[3/4] relative">
-                <img 
-                  src={book.coverImage || book.image || book.imagePath || 'https://placehold.co/400x600?text=No+Cover'} 
-                  alt={book.title} 
+                <img
+                  src={book.coverImage || book.image || book.imagePath || 'https://placehold.co/400x600?text=No+Cover'}
+                  alt={book.title}
                   className="object-cover w-full h-full"
                 />
                 <div className="absolute top-2 right-2">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                    book.status === 'Available' 
-                      ? 'bg-green-100 text-green-800' 
-                      : book.status === 'Reserved' 
-                        ? 'bg-yellow-100 text-yellow-800'
-                        : 'bg-red-100 text-red-800'
-                  }`}>
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${book.status === 'Available'
+                    ? 'bg-green-100 text-green-800'
+                    : book.status === 'Reserved'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : 'bg-red-100 text-red-800'
+                    }`}>
                     {book.status}
                   </span>
                 </div>

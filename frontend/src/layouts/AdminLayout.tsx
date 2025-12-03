@@ -1,19 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { 
-  LayoutDashboard, 
-  BookOpen, 
-  FileText, 
-  Users, 
-  BarChart4, 
-  Settings, 
+import {
+  LayoutDashboard,
+  BookOpen,
+  FileText,
+  Users,
+  BarChart4,
+  Settings,
   LogOut,
   FileCheck,
   Clock,
   PanelLeftClose,
   Menu
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface AdminLayoutProps {
   onLogout: () => void;
@@ -30,7 +39,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
     // Check if user is logged in and is an admin
     const storedUser = localStorage.getItem('user');
     const isAuthenticated = localStorage.getItem('isAuthenticated');
-    
+
     // Detect mobile viewport
     const checkIsMobile = () => {
       setIsMobile(window.innerWidth < 768);
@@ -39,13 +48,13 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
         setSidebarOpen(false);
       }
     };
-    
+
     // Initial check
     checkIsMobile();
-    
+
     // Add resize listener
     window.addEventListener('resize', checkIsMobile);
-    
+
     // Restore sidebar state from localStorage if available (only on desktop)
     if (!isMobile) {
       const savedSidebarState = localStorage.getItem('adminSidebarOpen');
@@ -53,12 +62,12 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
         setSidebarOpen(savedSidebarState === 'true');
       }
     }
-    
+
     if (storedUser && isAuthenticated) {
       try {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
-        
+
         // Redirect non-admin users
         if (parsedUser.role?.toLowerCase() !== 'admin') {
           navigate('/', { replace: true });
@@ -71,7 +80,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
       // Redirect to login if not logged in
       navigate('/login', { replace: true });
     }
-    
+
     // Cleanup
     return () => {
       window.removeEventListener('resize', checkIsMobile);
@@ -106,8 +115,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
   ];
 
   // Find current active nav item
-  const activeNavItem = navItems.find(item => 
-    location.pathname === item.path || 
+  const activeNavItem = navItems.find(item =>
+    location.pathname === item.path ||
     (item.path !== '/admin/dashboard' && location.pathname.startsWith(item.path))
   );
 
@@ -115,18 +124,17 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
     <div className="flex h-screen overflow-hidden">
       {/* Sidebar backdrop for mobile */}
       {sidebarOpen && isMobile && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 z-20 md:hidden"
           onClick={toggleSidebar}
           aria-hidden="true"
         />
       )}
-      
+
       {/* Sidebar - fixed position with transition */}
-      <aside 
-        className={`bg-indigo-900 text-white h-screen fixed top-0 left-0 overflow-y-auto flex flex-col justify-between transition-all duration-300 ease-in-out ${
-          sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-16'
-        } ${isMobile ? 'z-30' : 'z-10'}`}
+      <aside
+        className={`bg-indigo-900 text-white h-screen fixed top-0 left-0 overflow-y-auto flex flex-col justify-between transition-all duration-300 ease-in-out ${sidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full md:translate-x-0 md:w-16'
+          } ${isMobile ? 'z-30' : 'z-10'}`}
       >
         <div>
           {/* Logo section */}
@@ -142,28 +150,27 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
               </div>
             )}
           </div>
-          
+
           {/* Navigation */}
           <nav className={`space-y-1 ${sidebarOpen ? 'px-2' : 'px-0'}`}>
             {navItems.map((item) => {
-              const isActive = 
-                location.pathname === item.path || 
+              const isActive =
+                location.pathname === item.path ||
                 (item.path !== '/admin/dashboard' && location.pathname.startsWith(item.path));
-                
+
               return (
-                <Link 
+                <Link
                   key={item.path}
-                  to={item.path} 
-                  className={`flex items-center ${sidebarOpen ? 'px-4 py-2.5 justify-start' : 'p-2 justify-center'} rounded-md transition-colors ${
-                    isActive
-                      ? 'bg-white text-indigo-900 font-medium'
-                      : 'hover:bg-white/10'
-                  }`}
+                  to={item.path}
+                  className={`flex items-center ${sidebarOpen ? 'px-4 py-2.5 justify-start' : 'p-2 justify-center'} rounded-md transition-colors ${isActive
+                    ? 'bg-white text-indigo-900 font-medium'
+                    : 'hover:bg-white/10'
+                    }`}
                   title={!sidebarOpen ? item.label : undefined}
                 >
                   <div className={sidebarOpen ? '' : 'p-1'}>
-                    {React.cloneElement(item.icon as React.ReactElement, { 
-                      className: `h-5 w-5 ${sidebarOpen ? 'mr-3' : ''}` 
+                    {React.cloneElement(item.icon as React.ReactElement, {
+                      className: `h-5 w-5 ${sidebarOpen ? 'mr-3' : ''}`
                     })}
                   </div>
                   {sidebarOpen && <span>{item.label}</span>}
@@ -172,7 +179,7 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
             })}
           </nav>
         </div>
-        
+
         {/* User profile and logout section */}
         {sidebarOpen ? (
           <div className="mt-auto p-4">
@@ -185,8 +192,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
                 <p className="text-xs text-white/60 truncate">{user?.email || 'admin@example.com'}</p>
               </div>
             </div>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full border-white border-opacity-20 hover:bg-white/10 hover:text-white text-white"
               onClick={handleLogout}
             >
@@ -196,16 +203,16 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
           </div>
         ) : !isMobile && (
           <div className="mt-auto p-2 flex flex-col items-center">
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               className="h-10 w-10 rounded-full bg-white/10 hover:bg-white/20 text-white mb-4"
               title={user?.name || 'Admin User'}
             >
               {user?.name?.charAt(0) || 'A'}
             </Button>
-            <Button 
-              variant="ghost" 
+            <Button
+              variant="ghost"
               size="icon"
               className="h-8 w-8 text-white hover:bg-white/10"
               onClick={handleLogout}
@@ -216,52 +223,69 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ onLogout }) => {
           </div>
         )}
       </aside>
-      
+
       {/* Main content - with responsive margin based on sidebar state */}
-      <main 
-        className={`flex-1 overflow-y-auto bg-gray-50 transition-all duration-300 ease-in-out ${
-          sidebarOpen ? 'md:ml-64' : 'md:ml-16'
-        }`}
+      <main
+        className={`flex-1 overflow-y-auto bg-gray-50 transition-all duration-300 ease-in-out ${sidebarOpen ? 'md:ml-64' : 'md:ml-16'
+          }`}
       >
         {/* Header bar with toggle button */}
         <div className="sticky top-0 z-10 bg-white shadow-sm px-4 py-3 flex items-center">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className="h-9 w-9 p-0 mr-3" 
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 w-9 p-0 mr-3"
             onClick={toggleSidebar}
             title={sidebarOpen ? "Hide Sidebar" : "Show Sidebar"}
           >
-            {sidebarOpen ? 
-              <PanelLeftClose className="h-5 w-5" /> : 
+            {sidebarOpen ?
+              <PanelLeftClose className="h-5 w-5" /> :
               <Menu className="h-5 w-5" />
             }
           </Button>
-          
+
           <div className="flex-1">
             {/* Display current page title based on route */}
             <h2 className="text-lg font-medium">
               {activeNavItem?.label || 'Dashboard'}
             </h2>
           </div>
-          
-          {/* User profile for when sidebar is collapsed - desktop only */}
-          {!sidebarOpen && !isMobile && (
-            <div className="flex items-center">
-              <span className="text-sm mr-2">{user?.name}</span>
-              <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-800">
-                {user?.name?.charAt(0) || 'A'}
+
+          {/* User profile - always visible in header */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="flex items-center cursor-pointer hover:bg-gray-100 p-1 rounded-md transition-colors">
+                <span className="text-sm mr-2 font-medium hidden sm:inline-block">{user?.name}</span>
+                <Avatar className="h-8 w-8 border border-indigo-100">
+                  <AvatarImage src={user?.imagePath} />
+                  <AvatarFallback className="bg-indigo-100 text-indigo-800 font-bold">
+                    {user?.name?.charAt(0) || 'A'}
+                  </AvatarFallback>
+                </Avatar>
               </div>
-            </div>
-          )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium leading-none">{user?.name}</p>
+                  <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 cursor-pointer text-red-500 focus:text-red-500">
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-        
+
         {/* Page content */}
         <div className="p-6">
           <Outlet />
         </div>
       </main>
-      
+
       {/* Mobile sidebar toggle that appears when sidebar is closed - mobile only */}
       {!sidebarOpen && isMobile && (
         <Button
