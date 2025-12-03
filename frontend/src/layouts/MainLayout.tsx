@@ -78,9 +78,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
     { path: '/', label: 'Home', isVisible: true },
     { path: '/books', label: 'Books', isVisible: true },
     { path: '/ebooks', label: 'E-Books', isVisible: true },
-    { path: '/transactions', label: 'My Transactions', isVisible: isLoggedIn },
-    { path: '/reservations', label: 'My Reservations', isVisible: isLoggedIn },
-    { path: '/wishlist', label: 'My Wishlist', isVisible: isLoggedIn },
+    { path: '/transactions', label: 'Transactions', isVisible: isLoggedIn },
+    { path: '/reservations', label: 'Reservations', isVisible: isLoggedIn },
+    { path: '/wishlist', label: 'Wishlist', isVisible: isLoggedIn },
     { path: '/admin', label: 'Admin Dashboard', isVisible: isLoggedIn && user?.role === 'Admin' }
   ];
 
@@ -118,9 +118,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                   <Link
                     to={item.path}
                     className={`relative px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-800 transition-colors ${(location.pathname === item.path ||
-                        (item.path !== '/' && location.pathname.startsWith(item.path)))
-                        ? 'text-white font-semibold'
-                        : 'text-indigo-100'
+                      (item.path !== '/' && location.pathname.startsWith(item.path)))
+                      ? 'text-white font-semibold'
+                      : 'text-indigo-100'
                       }`}
                   >
                     {item.label}
@@ -169,19 +169,19 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                     <DropdownMenuItem asChild>
                       <Link to="/transactions" className="flex items-center gap-2 cursor-pointer">
                         <Clock className="h-4 w-4" />
-                        <span>My Transactions</span>
+                        <span>Transactions</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/reservations" className="flex items-center gap-2 cursor-pointer">
                         <BookMarked className="h-4 w-4" />
-                        <span>My Reservations</span>
+                        <span>Reservations</span>
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link to="/wishlist" className="flex items-center gap-2 cursor-pointer">
                         <Heart className="h-4 w-4" />
-                        <span>My Wishlist</span>
+                        <span>Wishlist</span>
                       </Link>
                     </DropdownMenuItem>
                     {user.role === 'Admin' && (
@@ -244,9 +244,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ onLogout }) => {
                       key={item.path}
                       to={item.path}
                       className={`px-4 py-3 hover:bg-indigo-700 transition-colors ${(location.pathname === item.path ||
-                          (item.path !== '/' && location.pathname.startsWith(item.path)))
-                          ? 'text-white font-semibold bg-indigo-700'
-                          : 'text-indigo-100'
+                        (item.path !== '/' && location.pathname.startsWith(item.path)))
+                        ? 'text-white font-semibold bg-indigo-700'
+                        : 'text-indigo-100'
                         }`}
                     >
                       {item.label}
