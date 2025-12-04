@@ -14,7 +14,7 @@ export const reservationService = {
   // Reserve a book
   reserveBook: async (bookId: string) => {
     try {
-      const response = await axiosAuth.post('/api/reservations', { bookId });
+      const response = await axiosAuth.post('/reservations', { bookId });
       return response.data;
     } catch (error: any) {
       throw error;
@@ -24,7 +24,7 @@ export const reservationService = {
   // Get user's reservations
   getUserReservations: async () => {
     try {
-      const response = await axiosAuth.get('/api/reservations');
+      const response = await axiosAuth.get('/reservations');
       return response.data;
     } catch (error: any) {
       throw error;
@@ -34,7 +34,7 @@ export const reservationService = {
   // Cancel a reservation
   cancelReservation: async (reservationId: string) => {
     try {
-      const response = await axiosAuth.delete(`/api/reservations/${reservationId}`);
+      const response = await axiosAuth.delete(`/reservations/${reservationId}`);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -44,7 +44,7 @@ export const reservationService = {
   // Admin: Get all reservations
   getAllReservations: async () => {
     try {
-      const response = await axiosAuth.get('/api/reservations/all');
+      const response = await axiosAuth.get('/reservations/all');
       return response.data;
     } catch (error: any) {
       throw error;
@@ -54,7 +54,7 @@ export const reservationService = {
   // Admin: Expire outdated reservations
   expireOutdatedReservations: async () => {
     try {
-      const response = await axiosAuth.put('/api/reservations/expire-outdated');
+      const response = await axiosAuth.put('/reservations/expire-outdated');
       return response.data;
     } catch (error: any) {
       throw error;
@@ -64,7 +64,7 @@ export const reservationService = {
   // Admin: Issue book from reservation
   issueBookFromReservation: async (reservationId: string) => {
     try {
-      const response = await axiosAuth.post(`/api/reservations/${reservationId}/issue`);
+      const response = await axiosAuth.post(`/reservations/${reservationId}/issue`);
       return response.data;
     } catch (error: any) {
       throw error;

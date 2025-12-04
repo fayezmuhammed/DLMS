@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Base URL from environment or default to localhost:5001
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
 // Basic axios instance
 export const axiosInstance = axios.create({
@@ -42,7 +42,7 @@ axiosAuth.interceptors.response.use(
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       localStorage.removeItem('isAuthenticated');
-      
+
       // Redirect to login if not already there
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
