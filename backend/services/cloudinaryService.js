@@ -5,7 +5,7 @@ const fs = require('fs');
 // Configure Cloudinary with credentials
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,  
+  api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
@@ -22,7 +22,7 @@ const uploadBuffer = (fileBuffer, folder, fileName, options = {}) => {
   return new Promise((resolve, reject) => {
     // Create a readable stream from the buffer
     const stream = Readable.from(fileBuffer);
-    
+
     // Create upload stream to Cloudinary
     const uploadStream = cloudinary.uploader.upload_stream(
       {
@@ -55,7 +55,7 @@ const uploadImage = async (filePath, options = {}) => {
   console.log(`Uploading image from path: ${filePath}`);
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload(
-      filePath, 
+      filePath,
       {
         folder: 'book-covers',
         resource_type: 'image',

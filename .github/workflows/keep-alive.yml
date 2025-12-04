@@ -1,0 +1,14 @@
+name: Keep Alive
+
+on:
+  schedule:
+    - cron: '*/14 * * * *' # Run every 14 minutes
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Backend
+        run: |
+          curl -I "${{ secrets.RENDER_BACKEND_URL }}/health"

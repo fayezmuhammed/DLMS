@@ -15,36 +15,36 @@ const startServer = async () => {
   try {
     await connectDB();
     console.log('MongoDB connected...');
-    
+
     // Schedule the due books check
     dueBooksJob.schedule('0 9 * * *');
     console.log('Due books check scheduled to run daily at 9:00 AM');
-    
+
     const app = express();
 
     // Apply performance optimizations
-    
+
     // Security headers
     app.use(helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false
     }));
-    
+
     // Compress all responses
     app.use(compression());
-    
+
     // CORS setup
     app.use(cors({
-      origin: ['http://localhost:5173', 'http://localhost:5174','https://dlms-two.vercel.app'],
+      origin: ['http://localhost:5173', 'http://localhost:5174', 'https://dlms-two.vercel.app'],
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept'],
       exposedHeaders: ['Set-Cookie']
     }));
-    
+
     // JSON parsing middleware - increased limits for e-books
     app.use(express.json({ limit: '10mb' }));
-    
+
     // Static file serving with improved caching
     const cacheControl = {
       setHeaders: (res, filePath) => {
@@ -57,15 +57,20 @@ const startServer = async () => {
         };
         const ext = path.extname(filePath).toLowerCase();
         if (mimeTypes[ext]) res.setHeader('Content-Type', mimeTypes[ext]);
-        
+
         // Long cache for static assets (1 day)
         res.setHeader('Cache-Control', 'public, max-age=86400');
       }
     };
-    
+
     app.use('/uploads', express.static(path.join(__dirname, 'uploads'), cacheControl));
     app.use(express.static(path.join(__dirname, 'public'), cacheControl));
-    
+
+    // Health check endpoint
+    app.get('/health', (req, res) => {
+      res.status(200).json({ status: 'ok' });
+    });
+
     // Mount all routes
     const routes = {
       '/api/auth': require('./routes/authRoutes'),
@@ -80,15 +85,15 @@ const startServer = async () => {
       '/api/wishlist': require('./routes/wishlistRoutes'),
       '/api/reservations': require('./routes/reservationRoutes')
     };
-    
+
     Object.entries(routes).forEach(([path, router]) => app.use(path, router));
-    
+
     // Optimized error handling
     app.use((err, req, res, next) => {
       console.error(err.stack);
       res.status(500).json({ success: false, message: 'Something went wrong!' });
     });
-    
+
     // Start server
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
